@@ -1,0 +1,31 @@
+-- Zones with the most fare-per-mile outliers (> mean + 3 sd) on Thanksgiving
+WITH x AS (
+                    SELECT pu_location_id, ROUND(fare_amount / trip_distance, 4) AS fpm
+                    FROM trips WHERE pickup_at >= '2023-11-23' AND pickup_at < '2023-11-24'
+                      AND trip_distance >= 1 AND fare_amount > 0),
+                s AS (SELECT pu_location_id, fpm,
+                             AVG(fpm) OVER (PARTITION BY pu_location_id) AS mu,
+                             STDDEV_SAMP(fpm) OVER (PARTITION BY pu_location_id) AS sd
+                      FROM x)
+                SELECT z.zone, COUNT(*) AS outliers
+                FROM s JOIN zones z ON z.location_id = s.pu_location_id
+                WHERE s.fpm > s.mu + 3 * s.sd
+                GROUP BY z.zone ORDER BY outliers DESC, z.zone LIMIT 10
+
+-> Limit: 10 row(s)  (actual time=111..111 rows=10 loops=1)
+    -> Sort: outliers DESC, z.`zone`, limit input to 10 row(s) per chunk  (actual time=111..111 rows=10 loops=1)
+        -> Table scan on <temporary>  (actual time=111..111 rows=62 loops=1)
+            -> Aggregate using temporary table  (actual time=111..111 rows=62 loops=1)
+                -> Nested loop inner join  (cost=3204 rows=4657) (actual time=103..111 rows=596 loops=1)
+                    -> Filter: (s.fpm > (s.mu + (3 * s.sd)))  (cost=12575..1574 rows=4657) (actual time=103..110 rows=596 loops=1)
+                        -> Table scan on s  (cost=12577..14152 rows=125774) (actual time=103..106 rows=47661 loops=1)
+                            -> Materialize CTE s  (cost=12577..12577 rows=125774) (actual time=103..103 rows=47661 loops=1)
+                                -> Window aggregate with buffering: stddev_samp(fpm) OVER (PARTITION BY x.pu_location_id )   (cost=0 rows=125774) (actual time=77.5..101 rows=47661 loops=1)
+                                    -> Table scan on <temporary>  (cost=12577..14152 rows=125774) (actual time=77.5..79.9 rows=47661 loops=1)
+                                        -> Temporary table  (cost=12577..12577 rows=125774) (actual time=77.5..77.5 rows=47661 loops=1)
+                                            -> Window aggregate with buffering: avg(x.fpm) OVER (PARTITION BY x.pu_location_id )   (cost=0 rows=125774) (actual time=41.4..76.2 rows=47661 loops=1)
+                                                -> Sort: x.pu_location_id  (cost=56599 rows=125774) (actual time=41.3..42.7 rows=47661 loops=1)
+                                                    -> Filter: ((trips.trip_distance >= 1.00) and (trips.fare_amount > 0.00))  (cost=56599 rows=125774) (actual time=0.0154..36.2 rows=47661 loops=1)
+                                                        -> Index range scan on trips using trips_pickup over ('2023-11-23 00:00:00' <= pickup_at < '2023-11-24 00:00:00'), with index condition: ((trips.pickup_at >= TIMESTAMP'2023-11-23 00:00:00') and (trips.pickup_at < TIMESTAMP'2023-11-24 00:00:00'))  (cost=56599 rows=125774) (actual time=0.0142..31.7 rows=64781 loops=1)
+                    -> Single-row index lookup on z using PRIMARY (location_id=s.pu_location_id)  (cost=0.25 rows=1) (actual time=114e-6..129e-6 rows=1 loops=596)
+

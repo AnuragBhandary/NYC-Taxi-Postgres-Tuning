@@ -1,0 +1,33 @@
+-- Top 10 pickup zones by revenue in March
+SELECT z.location_id, z.zone, z.borough, sum(m.trips)::bigint AS trips,
+                        sum(m.revenue) AS revenue
+                 FROM mv_daily m JOIN zones z ON z.location_id = m.pu_location_id
+                 WHERE m.day >= '2023-03-01' AND m.day < '2023-04-01'
+                 GROUP BY 1, 2, 3 ORDER BY revenue DESC, z.location_id LIMIT 10
+
+Limit  (cost=3885.32..3885.35 rows=10 width=66) (actual time=10.472..10.473 rows=10 loops=1)
+  Buffers: shared hit=30814
+  ->  Sort  (cost=3885.32..3885.99 rows=265 width=66) (actual time=10.471..10.472 rows=10 loops=1)
+        Sort Key: (sum(m.revenue)) DESC, z.location_id
+        Sort Method: top-N heapsort  Memory: 26kB
+        Buffers: shared hit=30814
+        ->  HashAggregate  (cost=3874.96..3879.60 rows=265 width=66) (actual time=10.402..10.436 rows=261 loops=1)
+              Group Key: z.location_id
+              Batches: 1  Memory Usage: 157kB
+              Buffers: shared hit=30814
+              ->  Hash Join  (cost=9.39..3639.51 rows=31393 width=40) (actual time=0.035..8.059 rows=30703 loops=1)
+                    Hash Cond: (m.pu_location_id = z.location_id)
+                    Buffers: shared hit=30814
+                    ->  Index Scan using mv_daily_key on mv_daily m  (cost=0.42..3546.83 rows=31393 width=16) (actual time=0.005..5.344 rows=30703 loops=1)
+                          Index Cond: ((day >= '2023-03-01'::date) AND (day < '2023-04-01'::date))
+                          Buffers: shared hit=30811
+                    ->  Hash  (cost=5.65..5.65 rows=265 width=26) (actual time=0.029..0.029 rows=265 loops=1)
+                          Buckets: 1024  Batches: 1  Memory Usage: 24kB
+                          Buffers: shared hit=3
+                          ->  Seq Scan on zones z  (cost=0.00..5.65 rows=265 width=26) (actual time=0.001..0.012 rows=265 loops=1)
+                                Buffers: shared hit=3
+Settings: effective_cache_size = '6GB', work_mem = '128MB', max_parallel_workers_per_gather = '4', random_page_cost = '1.1'
+Planning:
+  Buffers: shared hit=6
+Planning Time: 0.064 ms
+Execution Time: 10.505 ms

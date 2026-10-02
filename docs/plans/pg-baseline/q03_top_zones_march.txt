@@ -1,0 +1,65 @@
+-- Top 10 pickup zones by revenue in March
+SELECT z.location_id, z.zone, z.borough, count(*) AS trips,
+                       sum(t.total_amount) AS revenue
+                FROM trips_heap t JOIN zones z ON z.location_id = t.pu_location_id
+                WHERE t.pickup_at >= '2023-03-01' AND t.pickup_at < '2023-04-01'
+                GROUP BY 1, 2, 3 ORDER BY revenue DESC, z.location_id LIMIT 10
+
+Limit  (cost=733069.87..733069.90 rows=10 width=66) (actual time=524.252..528.361 rows=10 loops=1)
+  Buffers: shared hit=3787 read=575760
+  I/O Timings: shared read=528.066
+  ->  Sort  (cost=733069.87..733070.54 rows=265 width=66) (actual time=448.489..452.597 rows=10 loops=1)
+        Sort Key: (sum(t.total_amount)) DESC, z.location_id
+        Sort Method: top-N heapsort  Memory: 26kB
+        Buffers: shared hit=3787 read=575760
+        I/O Timings: shared read=528.066
+        ->  Finalize GroupAggregate  (cost=732923.32..733064.15 rows=265 width=66) (actual time=448.094..452.550 rows=261 loops=1)
+              Group Key: z.location_id
+              Buffers: shared hit=3787 read=575760
+              I/O Timings: shared read=528.066
+              ->  Gather Merge  (cost=732923.32..733050.24 rows=1060 width=66) (actual time=448.080..452.303 rows=1246 loops=1)
+                    Workers Planned: 4
+                    Workers Launched: 4
+                    Buffers: shared hit=3787 read=575760
+                    I/O Timings: shared read=528.066
+                    ->  Sort  (cost=731923.26..731923.92 rows=265 width=66) (actual time=438.777..438.785 rows=249 loops=5)
+                          Sort Key: z.location_id
+                          Sort Method: quicksort  Memory: 57kB
+                          Buffers: shared hit=3787 read=575760
+                          I/O Timings: shared read=528.066
+                          Worker 0:  Sort Method: quicksort  Memory: 57kB
+                          Worker 1:  Sort Method: quicksort  Memory: 57kB
+                          Worker 2:  Sort Method: quicksort  Memory: 57kB
+                          Worker 3:  Sort Method: quicksort  Memory: 58kB
+                          ->  Partial HashAggregate  (cost=731909.28..731912.59 rows=265 width=66) (actual time=438.682..438.723 rows=249 loops=5)
+                                Group Key: z.location_id
+                                Batches: 1  Memory Usage: 157kB
+                                Buffers: shared hit=3759 read=575760
+                                I/O Timings: shared read=528.066
+                                Worker 0:  Batches: 1  Memory Usage: 157kB
+                                Worker 1:  Batches: 1  Memory Usage: 157kB
+                                Worker 2:  Batches: 1  Memory Usage: 157kB
+                                Worker 3:  Batches: 1  Memory Usage: 157kB
+                                ->  Hash Join  (cost=8.96..725478.05 rows=857497 width=32) (actual time=112.661..395.634 rows=680732 loops=5)
+                                      Hash Cond: (t.pu_location_id = z.location_id)
+                                      Buffers: shared hit=3759 read=575760
+                                      I/O Timings: shared read=528.066
+                                      ->  Parallel Seq Scan on trips_heap t  (cost=0.00..723182.16 rows=857497 width=8) (actual time=112.573..341.150 rows=680732 loops=5)
+                                            Filter: ((pickup_at >= '2023-03-01 00:00:00'::timestamp without time zone) AND (pickup_at < '2023-04-01 00:00:00'::timestamp without time zone))
+                                            Rows Removed by Filter: 6981313
+                                            Buffers: shared hit=3744 read=575760
+                                            I/O Timings: shared read=528.066
+                                      ->  Hash  (cost=5.65..5.65 rows=265 width=26) (actual time=0.065..0.066 rows=265 loops=5)
+                                            Buckets: 1024  Batches: 1  Memory Usage: 24kB
+                                            Buffers: shared hit=15
+                                            ->  Seq Scan on zones z  (cost=0.00..5.65 rows=265 width=26) (actual time=0.027..0.039 rows=265 loops=5)
+                                                  Buffers: shared hit=15
+Settings: effective_cache_size = '6GB', work_mem = '128MB', max_parallel_workers_per_gather = '4', random_page_cost = '1.1'
+Planning:
+  Buffers: shared hit=6
+Planning Time: 0.114 ms
+JIT:
+  Functions: 89
+  Options: Inlining true, Optimization true, Expressions true, Deforming true
+  Timing: Generation 2.749 ms, Inlining 76.926 ms, Optimization 172.132 ms, Emission 181.936 ms, Total 433.743 ms
+Execution Time: 528.881 ms

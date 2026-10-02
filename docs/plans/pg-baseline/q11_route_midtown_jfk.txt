@@ -1,0 +1,38 @@
+-- Midtown Center -> JFK by month: trips, median fare, p95 minutes
+SELECT date_trunc('month', pickup_at)::date AS month, count(*) AS trips,
+                        percentile_disc(0.5) WITHIN GROUP (ORDER BY fare_amount) AS median_fare,
+                        percentile_disc(0.95) WITHIN GROUP (ORDER BY
+                            extract(epoch FROM dropoff_at - pickup_at)::int) AS p95_s
+                 FROM trips_heap WHERE pu_location_id = 161 AND do_location_id = 132 AND pickup_at >= '2023-01-01' AND pickup_at < '2024-01-01'
+                 GROUP BY 1 ORDER BY 1
+
+GroupAggregate  (cost=772433.89..775805.95 rows=21433 width=48) (actual time=342.596..351.410 rows=12 loops=1)
+  Group Key: ((date_trunc('month'::text, pickup_at))::date)
+  Buffers: shared hit=11140 read=568592
+  I/O Timings: shared read=521.260
+  ->  Gather Merge  (cost=772433.89..775001.95 rows=21448 width=26) (actual time=342.133..346.584 rows=25947 loops=1)
+        Workers Planned: 4
+        Workers Launched: 4
+        Buffers: shared hit=11140 read=568592
+        I/O Timings: shared read=521.260
+        ->  Sort  (cost=771433.83..771447.23 rows=5362 width=26) (actual time=333.949..334.069 rows=5189 loops=5)
+              Sort Key: ((date_trunc('month'::text, pickup_at))::date)
+              Sort Method: quicksort  Memory: 480kB
+              Buffers: shared hit=11140 read=568592
+              I/O Timings: shared read=521.260
+              Worker 0:  Sort Method: quicksort  Memory: 481kB
+              Worker 1:  Sort Method: quicksort  Memory: 477kB
+              Worker 2:  Sort Method: quicksort  Memory: 480kB
+              Worker 3:  Sort Method: quicksort  Memory: 463kB
+              ->  Parallel Seq Scan on trips_heap  (cost=0.00..771101.69 rows=5362 width=26) (actual time=43.164..333.103 rows=5189 loops=5)
+                    Filter: ((pickup_at >= '2023-01-01 00:00:00'::timestamp without time zone) AND (pickup_at < '2024-01-01 00:00:00'::timestamp without time zone) AND (pu_location_id = 161) AND (do_location_id = 132))
+                    Rows Removed by Filter: 7656856
+                    Buffers: shared hit=10912 read=568592
+                    I/O Timings: shared read=521.260
+Settings: effective_cache_size = '6GB', work_mem = '128MB', max_parallel_workers_per_gather = '4', random_page_cost = '1.1'
+Planning Time: 0.057 ms
+JIT:
+  Functions: 25
+  Options: Inlining true, Optimization true, Expressions true, Deforming true
+  Timing: Generation 1.463 ms, Inlining 74.931 ms, Optimization 64.149 ms, Emission 73.898 ms, Total 214.442 ms
+Execution Time: 351.788 ms

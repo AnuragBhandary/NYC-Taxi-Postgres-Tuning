@@ -1,0 +1,31 @@
+-- Daily trips, average distance and fare for one week of March
+SELECT pickup_at::date AS day, count(*) AS trips,
+                       round(sum(trip_distance) / count(*), 2) AS avg_miles,
+                       round(sum(fare_amount) / count(*), 2) AS avg_fare
+                FROM trips WHERE pickup_at >= '2023-03-06' AND pickup_at < '2023-03-13'
+                GROUP BY 1 ORDER BY 1
+
+GroupAggregate  (cost=141932.52..177088.77 rows=781250 width=76) (actual time=117.656..177.863 rows=7 loops=1)
+  Group Key: ((trips.pickup_at)::date)
+  Buffers: shared hit=11818
+  ->  Sort  (cost=141932.52..143885.65 rows=781250 width=16) (actual time=109.262..126.445 rows=774830 loops=1)
+        Sort Key: ((trips.pickup_at)::date)
+        Sort Method: quicksort  Memory: 58654kB
+        Buffers: shared hit=11818
+        ->  Bitmap Heap Scan on trips_2023_03 trips  (cost=208.08..65466.02 rows=781250 width=16) (actual time=2.912..66.710 rows=774830 loops=1)
+              Recheck Cond: ((pickup_at >= '2023-03-06 00:00:00'::timestamp without time zone) AND (pickup_at < '2023-03-13 00:00:00'::timestamp without time zone))
+              Rows Removed by Index Recheck: 4669
+              Heap Blocks: lossy=11808
+              Buffers: shared hit=11818
+              ->  Bitmap Index Scan on trips_2023_03_pickup_at_idx  (cost=0.00..12.77 rows=783321 width=0) (actual time=0.134..0.134 rows=118080 loops=1)
+                    Index Cond: ((pickup_at >= '2023-03-06 00:00:00'::timestamp without time zone) AND (pickup_at < '2023-03-13 00:00:00'::timestamp without time zone))
+                    Buffers: shared hit=10
+Settings: effective_cache_size = '6GB', work_mem = '128MB', max_parallel_workers_per_gather = '4', random_page_cost = '1.1'
+Planning:
+  Buffers: shared hit=1
+Planning Time: 0.086 ms
+JIT:
+  Functions: 9
+  Options: Inlining false, Optimization false, Expressions true, Deforming true
+  Timing: Generation 0.257 ms, Inlining 0.000 ms, Optimization 0.113 ms, Emission 2.673 ms, Total 3.044 ms
+Execution Time: 179.802 ms

@@ -1,0 +1,37 @@
+-- Daily trips with 7-day moving average and week-over-week change
+WITH d AS (SELECT pickup_at::date AS day, count(*) AS trips
+                            FROM trips_heap WHERE pickup_at >= '2023-01-01' AND pickup_at < '2024-01-01' GROUP BY 1)
+                 SELECT day, trips,
+                        round(avg(trips) OVER (ORDER BY day ROWS BETWEEN 6 PRECEDING
+                                               AND CURRENT ROW), 2) AS ma7,
+                        trips - lag(trips, 7) OVER (ORDER BY day) AS wow_change
+                 FROM d ORDER BY day
+
+WindowAgg  (cost=4356384.47..4765344.88 rows=10905611 width=52) (actual time=4303.412..4303.555 rows=365 loops=1)
+  Buffers: shared hit=7456 read=572048
+  I/O Timings: shared read=510.630
+  ->  WindowAgg  (cost=4356384.47..4547232.66 rows=10905611 width=44) (actual time=4303.404..4303.486 rows=365 loops=1)
+        Buffers: shared hit=7456 read=572048
+        I/O Timings: shared read=510.630
+        ->  Sort  (cost=4356384.47..4383648.49 rows=10905611 width=12) (actual time=4258.149..4258.159 rows=365 loops=1)
+              Sort Key: ((trips_heap.pickup_at)::date)
+              Sort Method: quicksort  Memory: 39kB
+              Buffers: shared hit=7456 read=572048
+              I/O Timings: shared read=510.630
+              ->  HashAggregate  (cost=2536842.34..2972432.11 rows=10905611 width=12) (actual time=4250.251..4258.112 rows=365 loops=1)
+                    Group Key: (trips_heap.pickup_at)::date
+                    Planned Partitions: 4  Batches: 1  Memory Usage: 98353kB
+                    Buffers: shared hit=7456 read=572048
+                    I/O Timings: shared read=510.630
+                    ->  Seq Scan on trips_heap  (cost=0.00..1249982.92 rows=38306513 width=4) (actual time=0.050..2812.609 rows=38310122 loops=1)
+                          Filter: ((pickup_at >= '2023-01-01 00:00:00'::timestamp without time zone) AND (pickup_at < '2024-01-01 00:00:00'::timestamp without time zone))
+                          Rows Removed by Filter: 104
+                          Buffers: shared hit=7456 read=572048
+                          I/O Timings: shared read=510.630
+Settings: effective_cache_size = '6GB', work_mem = '128MB', max_parallel_workers_per_gather = '4', random_page_cost = '1.1'
+Planning Time: 0.056 ms
+JIT:
+  Functions: 20
+  Options: Inlining true, Optimization true, Expressions true, Deforming true
+  Timing: Generation 0.388 ms, Inlining 4.475 ms, Optimization 18.134 ms, Emission 22.653 ms, Total 45.650 ms
+Execution Time: 4320.539 ms

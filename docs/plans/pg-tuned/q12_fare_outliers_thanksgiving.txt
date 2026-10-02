@@ -1,0 +1,54 @@
+-- Zones with the most fare-per-mile outliers (> mean + 3 sd) on Thanksgiving
+WITH x AS (
+                    SELECT pu_location_id, round(fare_amount / trip_distance, 4) AS fpm
+                    FROM trips WHERE pickup_at >= '2023-11-23' AND pickup_at < '2023-11-24'
+                      AND trip_distance >= 1 AND fare_amount > 0),
+                s AS (SELECT pu_location_id, fpm,
+                             avg(fpm) OVER (PARTITION BY pu_location_id) AS mu,
+                             stddev_samp(fpm) OVER (PARTITION BY pu_location_id) AS sd
+                      FROM x)
+                SELECT z.zone, count(*) AS outliers
+                FROM s JOIN zones z ON z.location_id = s.pu_location_id
+                WHERE s.fpm > s.mu + 3 * s.sd
+                GROUP BY z.zone ORDER BY outliers DESC, z.zone LIMIT 10
+
+Limit  (cost=46043.66..46043.69 rows=10 width=24) (actual time=32.042..32.043 rows=10 loops=1)
+  Buffers: shared hit=1038
+  ->  Sort  (cost=46043.66..46044.32 rows=262 width=24) (actual time=32.042..32.043 rows=10 loops=1)
+        Sort Key: (count(*)) DESC, z.zone
+        Sort Method: top-N heapsort  Memory: 25kB
+        Buffers: shared hit=1038
+        ->  HashAggregate  (cost=46035.38..46038.00 rows=262 width=24) (actual time=32.032..32.037 rows=62 loops=1)
+              Group Key: z.zone
+              Batches: 1  Memory Usage: 37kB
+              Buffers: shared hit=1038
+              ->  Merge Join  (cost=43398.92..45960.34 rows=15009 width=16) (actual time=8.975..31.974 rows=596 loops=1)
+                    Merge Cond: (s.pu_location_id = z.location_id)
+                    Buffers: shared hit=1038
+                    ->  Subquery Scan on s  (cost=43398.78..45762.64 rows=15009 width=2) (actual time=8.970..31.907 rows=596 loops=1)
+                          Filter: (s.fpm > (s.mu + ('3'::numeric * s.sd)))
+                          Rows Removed by Filter: 47065
+                          Buffers: shared hit=1034
+                          ->  WindowAgg  (cost=43398.78..44974.69 rows=45026 width=98) (actual time=8.904..28.050 rows=47661 loops=1)
+                                Buffers: shared hit=1034
+                                ->  Sort  (cost=43398.78..43511.34 rows=45026 width=14) (actual time=8.898..10.390 rows=47661 loops=1)
+                                      Sort Key: trips.pu_location_id
+                                      Sort Method: quicksort  Memory: 3398kB
+                                      Buffers: shared hit=1034
+                                      ->  Bitmap Heap Scan on trips_2023_11 trips  (cost=21.29..39918.61 rows=45026 width=14) (actual time=0.078..5.899 rows=47661 loops=1)
+                                            Recheck Cond: ((pickup_at >= '2023-11-23 00:00:00'::timestamp without time zone) AND (pickup_at < '2023-11-24 00:00:00'::timestamp without time zone))
+                                            Rows Removed by Index Recheck: 3594
+                                            Filter: ((trip_distance >= '1'::numeric) AND (fare_amount > '0'::numeric))
+                                            Rows Removed by Filter: 17120
+                                            Heap Blocks: lossy=1024
+                                            Buffers: shared hit=1034
+                                            ->  Bitmap Index Scan on trips_2023_11_pickup_at_idx  (cost=0.00..10.03 rows=61377 width=0) (actual time=0.075..0.075 rows=10240 loops=1)
+                                                  Index Cond: ((pickup_at >= '2023-11-23 00:00:00'::timestamp without time zone) AND (pickup_at < '2023-11-24 00:00:00'::timestamp without time zone))
+                                                  Buffers: shared hit=10
+                    ->  Index Scan using zones_pkey on zones z  (cost=0.15..9.42 rows=265 width=18) (actual time=0.004..0.019 rows=265 loops=1)
+                          Buffers: shared hit=4
+Settings: effective_cache_size = '6GB', work_mem = '128MB', max_parallel_workers_per_gather = '4', random_page_cost = '1.1'
+Planning:
+  Buffers: shared hit=5
+Planning Time: 0.087 ms
+Execution Time: 32.138 ms

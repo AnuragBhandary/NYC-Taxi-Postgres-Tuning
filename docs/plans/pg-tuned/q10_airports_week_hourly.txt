@@ -1,0 +1,29 @@
+-- Airport pickups by hour for one July week
+SELECT pu_location_id, extract(hour FROM pickup_at)::int AS hour,
+                        count(*) AS trips, round(sum(fare_amount) / count(*), 2) AS avg_fare,
+                        round(sum(extract(epoch FROM dropoff_at - pickup_at)::int) / 60.0
+                              / count(*), 1) AS avg_minutes
+                 FROM trips WHERE pu_location_id IN (1, 132, 138)
+                   AND pickup_at >= '2023-07-03' AND pickup_at < '2023-07-10'
+                 GROUP BY 1, 2 ORDER BY 1, 2
+
+GroupAggregate  (cost=57.90..14187.59 rows=52381 width=78) (actual time=0.052..30.749 rows=70 loops=1)
+  Group Key: trips.pu_location_id, ((EXTRACT(hour FROM trips.pickup_at))::integer)
+  Buffers: shared hit=3028
+  ->  Incremental Sort  (cost=57.90..11175.69 rows=52381 width=28) (actual time=0.050..22.370 rows=58889 loops=1)
+        Sort Key: trips.pu_location_id, ((EXTRACT(hour FROM trips.pickup_at))::integer)
+        Presorted Key: trips.pu_location_id
+        Full-sort Groups: 3  Sort Method: quicksort  Average Memory: 28kB  Peak Memory: 28kB
+        Pre-sorted Groups: 3  Sort Method: quicksort  Average Memory: 2449kB  Peak Memory: 3659kB
+        Buffers: shared hit=3028
+        ->  Index Only Scan using trips_2023_07_pu_location_id_do_location_id_pickup_at_dropo_idx on trips_2023_07 trips  (cost=0.43..8379.84 rows=52381 width=28) (actual time=0.008..15.243 rows=58889 loops=1)
+              Index Cond: (pu_location_id = ANY ('{1,132,138}'::integer[]))
+              Filter: ((pickup_at >= '2023-07-03 00:00:00'::timestamp without time zone) AND (pickup_at < '2023-07-10 00:00:00'::timestamp without time zone))
+              Rows Removed by Filter: 220997
+              Heap Fetches: 0
+              Buffers: shared hit=3028
+Settings: effective_cache_size = '6GB', work_mem = '128MB', max_parallel_workers_per_gather = '4', random_page_cost = '1.1'
+Planning:
+  Buffers: shared hit=1
+Planning Time: 0.052 ms
+Execution Time: 30.813 ms

@@ -1,0 +1,30 @@
+-- Top 3 drop-off zones for each pickup borough, June
+WITH c AS (
+                    SELECT pz.borough AS pu_borough, dz.zone AS do_zone, COUNT(*) AS trips
+                    FROM trips t
+                    JOIN zones pz ON pz.location_id = t.pu_location_id
+                    JOIN zones dz ON dz.location_id = t.do_location_id
+                    WHERE t.pickup_at >= '2023-06-01' AND t.pickup_at < '2023-07-01'
+                    GROUP BY 1, 2),
+                r AS (SELECT c.*, ROW_NUMBER() OVER (PARTITION BY pu_borough
+                                                     ORDER BY trips DESC, do_zone) AS rn FROM c)
+                SELECT pu_borough, rn, do_zone, trips FROM r WHERE rn <= 3
+                ORDER BY pu_borough, rn
+
+-> Sort: r.pu_borough, r.rn  (cost=2.6..2.6 rows=0) (actual time=1840..1840 rows=24 loops=1)
+    -> Filter: (r.rn <= 3)  (cost=2.5..2.5 rows=0) (actual time=1840..1840 rows=24 loops=1)
+        -> Table scan on r  (cost=2.5..2.5 rows=0) (actual time=1840..1840 rows=1470 loops=1)
+            -> Materialize CTE r  (cost=0..0 rows=0) (actual time=1840..1840 rows=1470 loops=1)
+                -> Window aggregate: row_number() OVER (PARTITION BY c.pu_borough ORDER BY c.trips desc,c.do_zone )   (cost=0 rows=0) (actual time=1839..1840 rows=1470 loops=1)
+                    -> Sort: c.pu_borough, c.trips DESC, c.do_zone  (cost=2.6..2.6 rows=0) (actual time=1839..1839 rows=1470 loops=1)
+                        -> Table scan on c  (cost=2.5..2.5 rows=0) (actual time=1839..1839 rows=1470 loops=1)
+                            -> Materialize CTE c  (cost=0..0 rows=0) (actual time=1839..1839 rows=1470 loops=1)
+                                -> Table scan on <temporary>  (actual time=1839..1839 rows=1470 loops=1)
+                                    -> Aggregate using temporary table  (actual time=1839..1839 rows=1470 loops=1)
+                                        -> Nested loop inner join  (cost=862798 rows=1.56e+6) (actual time=0.0136..1200 rows=3.31e+6 loops=1)
+                                            -> Nested loop inner join  (cost=315867 rows=1.56e+6) (actual time=0.0124..716 rows=3.31e+6 loops=1)
+                                                -> Table scan on pz  (cost=26.8 rows=265) (actual time=0.00508..0.0958 rows=265 loops=1)
+                                                -> Filter: ((t.pickup_at >= TIMESTAMP'2023-06-01 00:00:00') and (t.pickup_at < TIMESTAMP'2023-07-01 00:00:00'))  (cost=14.7 rows=5897) (actual time=0.00179..2.3 rows=12480 loops=265)
+                                                    -> Covering index lookup on t using trips_route (pu_location_id=pz.location_id)  (cost=14.7 rows=11794) (actual time=0.00169..1.64 rows=12480 loops=265)
+                                            -> Single-row index lookup on dz using PRIMARY (location_id=t.do_location_id)  (cost=0.25 rows=1) (actual time=49.9e-6..65.3e-6 rows=1 loops=3.31e+6)
+

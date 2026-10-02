@@ -1,0 +1,12 @@
+-- JFK pickups by weekday and hour, whole year
+SELECT WEEKDAY(day) + 1 AS dow, hour, SUM(trips) AS trips
+                 FROM mv_hourly_zone WHERE pu_location_id = 132
+                   AND day >= '2023-01-01' AND day < '2024-01-01'
+                 GROUP BY 1, 2 ORDER BY 1, 2
+
+-> Sort: dow, mv_hourly_zone.`hour`  (actual time=2.24..2.25 rows=168 loops=1)
+    -> Table scan on <temporary>  (actual time=2.22..2.23 rows=168 loops=1)
+        -> Aggregate using temporary table  (actual time=2.22..2.22 rows=168 loops=1)
+            -> Filter: ((mv_hourly_zone.pu_location_id = 132) and (mv_hourly_zone.`day` >= DATE'2023-01-01') and (mv_hourly_zone.`day` < DATE'2024-01-01'))  (cost=3400 rows=16894) (actual time=0.0746..1.16 rows=8718 loops=1)
+                -> Index range scan on mv_hourly_zone using PRIMARY over (pu_location_id = 132 AND '2023-01-01' <= day < '2024-01-01')  (cost=3400 rows=16894) (actual time=0.074..0.64 rows=8718 loops=1)
+

@@ -1,0 +1,41 @@
+-- Credit-card tip % quartiles and p95 by month, Q2
+SELECT date_trunc('month', pickup_at)::date AS month, count(*) AS trips,
+                       percentile_disc(0.25) WITHIN GROUP (ORDER BY tip_pct) AS p25,
+                       percentile_disc(0.5) WITHIN GROUP (ORDER BY tip_pct) AS p50,
+                       percentile_disc(0.75) WITHIN GROUP (ORDER BY tip_pct) AS p75,
+                       percentile_disc(0.95) WITHIN GROUP (ORDER BY tip_pct) AS p95
+                FROM (SELECT pickup_at, round(tip_amount * 100 / fare_amount, 2) AS tip_pct
+                      FROM trips_heap WHERE payment_type = 1 AND fare_amount > 0
+                        AND pickup_at >= '2023-04-01' AND pickup_at < '2023-07-01') x
+                GROUP BY 1 ORDER BY 1
+
+GroupAggregate  (cost=989752.21..2212191.30 rows=6084753 width=140) (actual time=1367.361..2904.215 rows=3 loops=1)
+  Group Key: ((date_trunc('month'::text, trips_heap.pickup_at))::date)
+  Buffers: shared hit=7332 read=572400
+  I/O Timings: shared read=524.102
+  ->  Gather Merge  (cost=989752.21..1940913.78 rows=7943913 width=15) (actual time=658.536..1101.166 rows=7917379 loops=1)
+        Workers Planned: 4
+        Workers Launched: 4
+        Buffers: shared hit=7332 read=572400
+        I/O Timings: shared read=524.102
+        ->  Sort  (cost=988752.15..993717.10 rows=1985978 width=15) (actual time=649.331..686.245 rows=1583476 loops=5)
+              Sort Key: ((date_trunc('month'::text, trips_heap.pickup_at))::date)
+              Sort Method: quicksort  Memory: 117442kB
+              Buffers: shared hit=7332 read=572400
+              I/O Timings: shared read=524.102
+              Worker 0:  Sort Method: quicksort  Memory: 113975kB
+              Worker 1:  Sort Method: quicksort  Memory: 116822kB
+              Worker 2:  Sort Method: quicksort  Memory: 113076kB
+              Worker 3:  Sort Method: quicksort  Memory: 115421kB
+              ->  Parallel Seq Scan on trips_heap  (cost=0.00..781004.77 rows=1985978 width=15) (actual time=149.131..559.583 rows=1583476 loops=5)
+                    Filter: ((fare_amount > '0'::numeric) AND (pickup_at >= '2023-04-01 00:00:00'::timestamp without time zone) AND (pickup_at < '2023-07-01 00:00:00'::timestamp without time zone) AND (payment_type = 1))
+                    Rows Removed by Filter: 6078569
+                    Buffers: shared hit=7104 read=572400
+                    I/O Timings: shared read=524.102
+Settings: effective_cache_size = '6GB', work_mem = '128MB', max_parallel_workers_per_gather = '4', random_page_cost = '1.1'
+Planning Time: 0.085 ms
+JIT:
+  Functions: 27
+  Options: Inlining true, Optimization true, Expressions true, Deforming true
+  Timing: Generation 1.603 ms, Inlining 79.519 ms, Optimization 87.742 ms, Emission 94.550 ms, Total 263.413 ms
+Execution Time: 2916.800 ms

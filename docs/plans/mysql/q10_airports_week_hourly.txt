@@ -1,0 +1,14 @@
+-- Airport pickups by hour for one July week
+SELECT pu_location_id, HOUR(pickup_at) AS hour, COUNT(*) AS trips,
+                         ROUND(SUM(fare_amount) / COUNT(*), 2) AS avg_fare,
+                         ROUND(SUM(TIMESTAMPDIFF(SECOND, pickup_at, dropoff_at)) / 60.0
+                               / COUNT(*), 1) AS avg_minutes
+                  FROM trips WHERE pu_location_id IN (1, 132, 138)
+                    AND pickup_at >= '2023-07-03' AND pickup_at < '2023-07-10'
+                  GROUP BY 1, 2 ORDER BY 1, 2
+
+-> Sort: trips.pu_location_id, `hour`  (actual time=48.8..48.8 rows=70 loops=1)
+    -> Table scan on <temporary>  (actual time=48.7..48.7 rows=70 loops=1)
+        -> Aggregate using temporary table  (actual time=48.7..48.7 rows=70 loops=1)
+            -> Index range scan on trips using trips_pu_pickup over (pu_location_id = 1 AND '2023-07-03 00:00:00' <= pickup_at < '2023-07-10 00:00:00') OR (pu_location_id = 132 AND '2023-07-03 00:00:00' <= pickup_at < '2023-07-10 00:00:00') OR (pu_location_id = 138 AND '2023-07-03 00:00:00' <= pickup_at < '2023-07-10 00:00:00'), with index condition: ((trips.pu_location_id in (1,132,138)) and (trips.pickup_at >= TIMESTAMP'2023-07-03 00:00:00') and (trips.pickup_at < TIMESTAMP'2023-07-10 00:00:00'))  (cost=53372 rows=118602) (actual time=0.0123..37.1 rows=58889 loops=1)
+

@@ -1,0 +1,62 @@
+# One server per engine, with the same memory budget, configured once and never changed between
+# the baseline and tuned runs: every speedup in docs/RESULTS.md comes from schema, indexes and
+# query design, not from server settings.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: taxi
+      POSTGRES_PASSWORD: taxi
+      POSTGRES_DB: taxi
+    command:
+      - postgres
+      - -c
+      - shared_buffers=2GB
+      - -c
+      - effective_cache_size=6GB
+      - -c
+      - work_mem=128MB
+      - -c
+      - maintenance_work_mem=1GB
+      - -c
+      - max_parallel_workers_per_gather=4
+      - -c
+      - max_wal_size=1GB
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - track_io_timing=on
+    shm_size: 2gb
+    ports: ["5435:5432"]
+    volumes: [pg-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "taxi"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  mysql:
+    image: mysql:8.4
+    profiles: ["mysql"]
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: taxi
+      MYSQL_USER: taxi
+      MYSQL_PASSWORD: taxi
+    command:
+      - --innodb-buffer-pool-size=4G
+      - --innodb-redo-log-capacity=2G
+      - --local-infile=1
+      - --default-time-zone=+00:00
+      - --disable-log-bin
+    ports: ["3309:3306"]
+    volumes: [mysql-data:/var/lib/mysql]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 3s
+      timeout: 3s
+      retries: 60
+
+volumes:
+  pg-data:
+  mysql-data:

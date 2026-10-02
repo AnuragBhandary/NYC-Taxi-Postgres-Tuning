@@ -1,0 +1,73 @@
+-- Zones with the most fare-per-mile outliers (> mean + 3 sd) on Thanksgiving
+WITH x AS (
+                    SELECT pu_location_id, round(fare_amount / trip_distance, 4) AS fpm
+                    FROM trips_heap WHERE pickup_at >= '2023-11-23' AND pickup_at < '2023-11-24'
+                      AND trip_distance >= 1 AND fare_amount > 0),
+                s AS (SELECT pu_location_id, fpm,
+                             avg(fpm) OVER (PARTITION BY pu_location_id) AS mu,
+                             stddev_samp(fpm) OVER (PARTITION BY pu_location_id) AS sd
+                      FROM x)
+                SELECT z.zone, count(*) AS outliers
+                FROM s JOIN zones z ON z.location_id = s.pu_location_id
+                WHERE s.fpm > s.mu + 3 * s.sd
+                GROUP BY z.zone ORDER BY outliers DESC, z.zone LIMIT 10
+
+Limit  (cost=784207.86..784207.89 rows=10 width=24) (actual time=431.234..432.325 rows=10 loops=1)
+  Buffers: shared hit=12260 read=567472
+  I/O Timings: shared read=518.565
+  ->  Sort  (cost=784207.86..784208.52 rows=262 width=24) (actual time=357.829..358.919 rows=10 loops=1)
+        Sort Key: (count(*)) DESC, z.zone
+        Sort Method: top-N heapsort  Memory: 26kB
+        Buffers: shared hit=12260 read=567472
+        I/O Timings: shared read=518.565
+        ->  GroupAggregate  (cost=784060.17..784202.20 rows=262 width=24) (actual time=357.775..358.907 rows=62 loops=1)
+              Group Key: z.zone
+              Buffers: shared hit=12260 read=567472
+              I/O Timings: shared read=518.565
+              ->  Sort  (cost=784060.17..784106.64 rows=18588 width=16) (actual time=357.758..358.862 rows=596 loops=1)
+                    Sort Key: z.zone
+                    Sort Method: quicksort  Memory: 41kB
+                    Buffers: shared hit=12260 read=567472
+                    I/O Timings: shared read=518.565
+                    ->  Merge Join  (cost=773034.72..782742.09 rows=18588 width=16) (actual time=333.163..358.748 rows=596 loops=1)
+                          Merge Cond: (s.pu_location_id = z.location_id)
+                          Buffers: shared hit=12260 read=567472
+                          I/O Timings: shared read=518.565
+                          ->  Subquery Scan on s  (cost=773034.57..782499.65 rows=18588 width=2) (actual time=333.142..358.659 rows=596 loops=1)
+                                Filter: (s.fpm > (s.mu + ('3'::numeric * s.sd)))
+                                Rows Removed by Filter: 47065
+                                Buffers: shared hit=12256 read=567472
+                                I/O Timings: shared read=518.565
+                                ->  WindowAgg  (cost=773034.57..781523.78 rows=55764 width=98) (actual time=333.080..354.914 rows=47661 loops=1)
+                                      Buffers: shared hit=12256 read=567472
+                                      I/O Timings: shared read=518.565
+                                      ->  Gather Merge  (cost=773034.57..779711.45 rows=55764 width=14) (actual time=333.047..336.962 rows=47661 loops=1)
+                                            Workers Planned: 4
+                                            Workers Launched: 4
+                                            Buffers: shared hit=12256 read=567472
+                                            I/O Timings: shared read=518.565
+                                            ->  Sort  (cost=772034.51..772069.36 rows=13941 width=14) (actual time=324.386..324.734 rows=9532 loops=5)
+                                                  Sort Key: trips_heap.pu_location_id
+                                                  Sort Method: quicksort  Memory: 728kB
+                                                  Buffers: shared hit=12256 read=567472
+                                                  I/O Timings: shared read=518.565
+                                                  Worker 0:  Sort Method: quicksort  Memory: 1772kB
+                                                  Worker 1:  Sort Method: quicksort  Memory: 110kB
+                                                  Worker 2:  Sort Method: quicksort  Memory: 25kB
+                                                  Worker 3:  Sort Method: quicksort  Memory: 838kB
+                                                  ->  Parallel Seq Scan on trips_heap  (cost=0.00..771074.88 rows=13941 width=14) (actual time=285.199..323.569 rows=9532 loops=5)
+                                                        Filter: ((pickup_at >= '2023-11-23 00:00:00'::timestamp without time zone) AND (pickup_at < '2023-11-24 00:00:00'::timestamp without time zone) AND (trip_distance >= '1'::numeric) AND (fare_amount > '0'::numeric))
+                                                        Rows Removed by Filter: 7652513
+                                                        Buffers: shared hit=12032 read=567472
+                                                        I/O Timings: shared read=518.565
+                          ->  Index Scan using zones_pkey on zones z  (cost=0.15..9.42 rows=265 width=18) (actual time=0.013..0.034 rows=265 loops=1)
+                                Buffers: shared hit=4
+Settings: effective_cache_size = '6GB', work_mem = '128MB', max_parallel_workers_per_gather = '4', random_page_cost = '1.1'
+Planning:
+  Buffers: shared hit=4
+Planning Time: 0.134 ms
+JIT:
+  Functions: 38
+  Options: Inlining true, Optimization true, Expressions true, Deforming true
+  Timing: Generation 1.613 ms, Inlining 74.986 ms, Optimization 87.473 ms, Emission 90.846 ms, Total 254.919 ms
+Execution Time: 432.898 ms
