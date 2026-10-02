@@ -1,0 +1,51 @@
+-- Median and p90 trip duration by pickup borough, June
+SELECT z.borough, count(*) AS trips,
+                       percentile_disc(0.5) WITHIN GROUP (ORDER BY
+                           extract(epoch FROM t.dropoff_at - t.pickup_at)::int) AS p50_s,
+                       percentile_disc(0.9) WITHIN GROUP (ORDER BY
+                           extract(epoch FROM t.dropoff_at - t.pickup_at)::int) AS p90_s
+                FROM trips_heap t JOIN zones z ON z.location_id = t.pu_location_id
+                WHERE t.pickup_at >= '2023-06-01' AND t.pickup_at < '2023-07-01'
+                GROUP BY 1 ORDER BY 1
+
+GroupAggregate  (cost=808255.26..1256819.74 rows=8 width=24) (actual time=429.498..1124.033 rows=8 loops=1)
+  Group Key: z.borough
+  Buffers: shared hit=6343 read=573520
+  I/O Timings: shared read=533.999
+  ->  Gather Merge  (cost=808255.26..1206880.97 rows=3329243 width=24) (actual time=428.298..666.391 rows=3307259 loops=1)
+        Workers Planned: 4
+        Workers Launched: 4
+        Buffers: shared hit=6343 read=573520
+        I/O Timings: shared read=533.999
+        ->  Sort  (cost=807255.20..809335.98 rows=832311 width=24) (actual time=419.881..435.782 rows=661452 loops=5)
+              Sort Key: z.borough
+              Sort Method: quicksort  Memory: 60867kB
+              Buffers: shared hit=6343 read=573520
+              I/O Timings: shared read=533.999
+              Worker 0:  Sort Method: quicksort  Memory: 60126kB
+              Worker 1:  Sort Method: quicksort  Memory: 59704kB
+              Worker 2:  Sort Method: quicksort  Memory: 61043kB
+              Worker 3:  Sort Method: quicksort  Memory: 59043kB
+              ->  Hash Join  (cost=8.96..725410.88 rows=832311 width=24) (actual time=163.030..378.400 rows=661452 loops=5)
+                    Hash Cond: (t.pu_location_id = z.location_id)
+                    Buffers: shared hit=6115 read=573520
+                    I/O Timings: shared read=533.999
+                    ->  Parallel Seq Scan on trips_heap t  (cost=0.00..723182.16 rows=832311 width=18) (actual time=162.869..331.815 rows=661452 loops=5)
+                          Filter: ((pickup_at >= '2023-06-01 00:00:00'::timestamp without time zone) AND (pickup_at < '2023-07-01 00:00:00'::timestamp without time zone))
+                          Rows Removed by Filter: 7000593
+                          Buffers: shared hit=5984 read=573520
+                          I/O Timings: shared read=533.999
+                    ->  Hash  (cost=5.65..5.65 rows=265 width=10) (actual time=0.062..0.062 rows=265 loops=5)
+                          Buckets: 1024  Batches: 1  Memory Usage: 20kB
+                          Buffers: shared hit=15
+                          ->  Seq Scan on zones z  (cost=0.00..5.65 rows=265 width=10) (actual time=0.027..0.039 rows=265 loops=5)
+                                Buffers: shared hit=15
+Settings: effective_cache_size = '6GB', work_mem = '128MB', max_parallel_workers_per_gather = '4', random_page_cost = '1.1'
+Planning:
+  Buffers: shared hit=4
+Planning Time: 0.104 ms
+JIT:
+  Functions: 70
+  Options: Inlining true, Optimization true, Expressions true, Deforming true
+  Timing: Generation 1.769 ms, Inlining 67.900 ms, Optimization 111.558 ms, Emission 115.513 ms, Total 296.739 ms
+Execution Time: 1125.726 ms

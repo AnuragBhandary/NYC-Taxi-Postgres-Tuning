@@ -1,0 +1,225 @@
+{
+  "machine": "Apple M5 Pro laptop, Docker Desktop VM (12 CPUs, 11.7 GB RAM)",
+  "rows": 38310226,
+  "summary": {
+    "pg-baseline": {
+      "suite_median_ms": 488.1,
+      "suite_total_ms": 18970.7
+    },
+    "pg-tuned": {
+      "suite_median_ms": 19.4,
+      "suite_total_ms": 454.1
+    },
+    "mysql": {
+      "suite_median_ms": 47.2,
+      "suite_total_ms": 2158.0
+    }
+  },
+  "all_results_match": true,
+  "queries": [
+    {
+      "query": "q01_monthly_revenue",
+      "title": "Trips and revenue per month, whole year",
+      "exercises": "full-year aggregate -> materialized view",
+      "pg-baseline": 4958.9,
+      "pg-tuned": 25.1,
+      "mysql": 110.2,
+      "tuned_same_result": true,
+      "speedup": 197.6,
+      "mysql_same_result": true,
+      "baseline_page_accesses": 579504,
+      "tuned_page_accesses": 3600
+    },
+    {
+      "query": "q02_week_daily",
+      "title": "Daily trips, average distance and fare for one week of March",
+      "exercises": "7-day range -> partition pruning + BRIN",
+      "pg-baseline": 378.4,
+      "pg-tuned": 122.9,
+      "mysql": 559.9,
+      "tuned_same_result": true,
+      "speedup": 3.1,
+      "mysql_same_result": true,
+      "baseline_page_accesses": 579732,
+      "tuned_page_accesses": 11818
+    },
+    {
+      "query": "q03_top_zones_march",
+      "title": "Top 10 pickup zones by revenue in March",
+      "exercises": "one month + join + top-N -> materialized view",
+      "pg-baseline": 480.6,
+      "pg-tuned": 8.4,
+      "mysql": 15.7,
+      "tuned_same_result": true,
+      "speedup": 57.2,
+      "mysql_same_result": true,
+      "baseline_page_accesses": 579547,
+      "tuned_page_accesses": 30814
+    },
+    {
+      "query": "q04_jfk_hourly_profile",
+      "title": "JFK pickups by weekday and hour, whole year",
+      "exercises": "one zone, whole year -> hourly rollup (was: index-only scan)",
+      "pg-baseline": 495.7,
+      "pg-tuned": 3.3,
+      "mysql": 2.2,
+      "tuned_same_result": true,
+      "speedup": 150.2,
+      "mysql_same_result": true,
+      "baseline_page_accesses": 579728,
+      "tuned_page_accesses": 4492
+    },
+    {
+      "query": "q05_duration_pct_by_borough",
+      "title": "Median and p90 trip duration by pickup borough, June",
+      "exercises": "one month, exact percentiles -> duration histogram (was: 3.3M-row sort)",
+      "pg-baseline": 934.2,
+      "pg-tuned": 16.2,
+      "mysql": 37.7,
+      "tuned_same_result": true,
+      "speedup": 57.7,
+      "mysql_same_result": true,
+      "baseline_page_accesses": 579863,
+      "tuned_page_accesses": 27961
+    },
+    {
+      "query": "q06_tip_pct_quartiles",
+      "title": "Credit-card tip % quartiles and p95 by month, Q2",
+      "exercises": "three months, four exact percentiles -> tip histogram (was: 7.9M-row sort)",
+      "pg-baseline": 2411.6,
+      "pg-tuned": 10.8,
+      "mysql": 29.4,
+      "tuned_same_result": true,
+      "speedup": 223.3,
+      "mysql_same_result": true,
+      "baseline_page_accesses": 579732,
+      "tuned_page_accesses": 218
+    },
+    {
+      "query": "q07_rolling_7day",
+      "title": "Daily trips with 7-day moving average and week-over-week change",
+      "exercises": "full-year daily series + window functions -> materialized view",
+      "pg-baseline": 2887.1,
+      "pg-tuned": 18.5,
+      "mysql": 41.4,
+      "tuned_same_result": true,
+      "speedup": 156.1,
+      "mysql_same_result": true,
+      "baseline_page_accesses": 579504,
+      "tuned_page_accesses": 3600
+    },
+    {
+      "query": "q08_top3_dropoffs",
+      "title": "Top 3 drop-off zones for each pickup borough, June",
+      "exercises": "one month -> pruning; two joins, CTE, ROW_NUMBER",
+      "pg-baseline": 443.2,
+      "pg-tuned": 162.8,
+      "mysql": 1063.2,
+      "tuned_same_result": true,
+      "speedup": 2.7,
+      "mysql_same_result": true,
+      "baseline_page_accesses": 579610,
+      "tuned_page_accesses": 63953
+    },
+    {
+      "query": "q09_vendor_mom",
+      "title": "Monthly revenue per vendor with month-over-month growth",
+      "exercises": "full-year aggregate + LAG -> materialized view",
+      "pg-baseline": 4842.5,
+      "pg-tuned": 31.0,
+      "mysql": 107.4,
+      "tuned_same_result": true,
+      "speedup": 156.2,
+      "mysql_same_result": true,
+      "baseline_page_accesses": 579504,
+      "tuned_page_accesses": 3614
+    },
+    {
+      "query": "q10_airports_week_hourly",
+      "title": "Airport pickups by hour for one July week",
+      "exercises": "3 zones x 7 days -> pruning + (pu_location_id, pickup_at) index",
+      "pg-baseline": 354.0,
+      "pg-tuned": 20.3,
+      "mysql": 44.5,
+      "tuned_same_result": true,
+      "speedup": 17.4,
+      "mysql_same_result": true,
+      "baseline_page_accesses": 579756,
+      "tuned_page_accesses": 3028
+    },
+    {
+      "query": "q11_route_midtown_jfk",
+      "title": "Midtown Center -> JFK by month: trips, median fare, p95 minutes",
+      "exercises": "one route, whole year -> covering index, index-only scan",
+      "pg-baseline": 356.2,
+      "pg-tuned": 7.7,
+      "mysql": 49.9,
+      "tuned_same_result": true,
+      "speedup": 46.3,
+      "mysql_same_result": true,
+      "baseline_page_accesses": 579732,
+      "tuned_page_accesses": 248
+    },
+    {
+      "query": "q12_fare_outliers_thanksgiving",
+      "title": "Zones with the most fare-per-mile outliers (> mean + 3 sd) on Thanksgiving",
+      "exercises": "one day -> pruning + BRIN; CTE with window avg/stddev",
+      "pg-baseline": 428.3,
+      "pg-tuned": 27.1,
+      "mysql": 96.5,
+      "tuned_same_result": true,
+      "speedup": 15.8,
+      "mysql_same_result": true,
+      "baseline_page_accesses": 579732,
+      "tuned_page_accesses": 1038
+    }
+  ],
+  "load": {
+    "postgres_baseline": {
+      "rows": 38310226,
+      "seconds": 56.6,
+      "rows_per_s": 676812,
+      "vacuum_analyze_s": 5.3,
+      "pickup_correlation": 0.9996
+    },
+    "mysql": {
+      "rows": 38310226,
+      "seconds": 114.1,
+      "rows_per_s": 335636
+    }
+  },
+  "postgres_tuning_s": {
+    "brin_pickup": 5.1,
+    "btree_zone_time": 11.9,
+    "btree_route_covering": 14.1,
+    "mv_daily": 14.5,
+    "mv_hourly_zone": 6.3,
+    "mv_duration_hist": 11.2,
+    "mv_tip_hist": 4.4
+  },
+  "postgres_sizes": {
+    "trips (12 partitions + default)": "4526 MB",
+    "trips_heap": "4529 MB",
+    "brin (pickup_at)": "0.8 MB",
+    "btree (pu_location_id, pickup_at)": "1135 MB",
+    "btree route covering": "2148 MB",
+    "mv_daily": "39 MB",
+    "mv_hourly_zone": "71 MB",
+    "mv_duration_hist": "29 MB",
+    "mv_tip_hist": "6.9 MB"
+  },
+  "mv_refresh_concurrently_s": {
+    "mv_daily": 18.1,
+    "mv_hourly_zone": 9.4,
+    "mv_duration_hist": 12.3,
+    "mv_tip_hist": 4.6
+  },
+  "mysql_sizes": {
+    "trips": "3953 MB data, 3037 MB indexes",
+    "summary tables": "98 MB"
+  },
+  "partition_rows": {
+    "each month": "2.8M-3.5M",
+    "trips_default (dates outside 2023)": 104
+  }
+}

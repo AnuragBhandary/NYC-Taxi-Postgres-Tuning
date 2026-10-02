@@ -1,0 +1,13 @@
+-- Daily trips, average distance and fare for one week of March
+SELECT DATE(pickup_at) AS day, COUNT(*) AS trips,
+                        ROUND(SUM(trip_distance) / COUNT(*), 2) AS avg_miles,
+                        ROUND(SUM(fare_amount) / COUNT(*), 2) AS avg_fare
+                 FROM trips WHERE pickup_at >= '2023-03-06' AND pickup_at < '2023-03-13'
+                 GROUP BY 1 ORDER BY 1
+
+-> Sort: `day`  (actual time=714..714 rows=7 loops=1)
+    -> Table scan on <temporary>  (actual time=714..714 rows=7 loops=1)
+        -> Aggregate using temporary table  (actual time=714..714 rows=7 loops=1)
+            -> Filter: ((trips.pickup_at >= TIMESTAMP'2023-03-06 00:00:00') and (trips.pickup_at < TIMESTAMP'2023-03-13 00:00:00'))  (cost=333850 rows=1.61e+6) (actual time=0.006..596 rows=774830 loops=1)
+                -> Table scan on trips  (cost=333850 rows=3.28e+6) (actual time=0.00567..446 rows=3.4e+6 loops=1)
+

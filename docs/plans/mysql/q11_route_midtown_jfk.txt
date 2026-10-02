@@ -1,0 +1,48 @@
+-- Midtown Center -> JFK by month: trips, median fare, p95 minutes
+WITH d AS (
+                    SELECT CAST(DATE_FORMAT(pickup_at, '%Y-%m-01') AS DATE) AS month, fare_amount,
+                           TIMESTAMPDIFF(SECOND, pickup_at, dropoff_at) AS secs
+                    FROM trips WHERE pu_location_id = 161 AND do_location_id = 132 AND pickup_at >= '2023-01-01' AND pickup_at < '2024-01-01'),
+                  f AS (SELECT month, fare_amount AS v,
+                               ROW_NUMBER() OVER (PARTITION BY month ORDER BY fare_amount) AS rn,
+                               COUNT(*) OVER (PARTITION BY month) AS n FROM d),
+                  s AS (SELECT month, secs AS v,
+                               ROW_NUMBER() OVER (PARTITION BY month ORDER BY secs) AS rn,
+                               COUNT(*) OVER (PARTITION BY month) AS n FROM d),
+                  fa AS (SELECT month, n, MIN(CASE WHEN rn >= CEIL(0.5 * n) THEN v END) AS median_fare FROM f GROUP BY month, n),
+                  sa AS (SELECT month, MIN(CASE WHEN rn >= CEIL(0.95 * n) THEN v END) AS p95_s FROM s GROUP BY month)
+                  SELECT fa.month, fa.n AS trips, fa.median_fare, sa.p95_s
+                  FROM fa JOIN sa ON sa.month = fa.month ORDER BY fa.month
+
+-> Nested loop inner join  (cost=64888 rows=0) (actual time=62.7..62.7 rows=12 loops=1)
+    -> Sort: fa.`month`  (cost=2.6..2.6 rows=0) (actual time=31.7..31.7 rows=12 loops=1)
+        -> Filter: (fa.`month` is not null)  (cost=2.5..2.5 rows=0) (actual time=31.7..31.7 rows=12 loops=1)
+            -> Table scan on fa  (cost=2.5..2.5 rows=0) (actual time=31.7..31.7 rows=12 loops=1)
+                -> Materialize CTE fa  (cost=0..0 rows=0) (actual time=31.7..31.7 rows=12 loops=1)
+                    -> Table scan on <temporary>  (actual time=31.7..31.7 rows=12 loops=1)
+                        -> Aggregate using temporary table  (actual time=31.7..31.7 rows=12 loops=1)
+                            -> Table scan on f  (cost=2.5..2.5 rows=0) (actual time=26.3..27.6 rows=25947 loops=1)
+                                -> Materialize CTE f  (cost=0..0 rows=0) (actual time=26.3..26.3 rows=25947 loops=1)
+                                    -> Window aggregate with buffering: count(0) OVER (PARTITION BY d.`month` )   (actual time=18.4..24.8 rows=25947 loops=1)
+                                        -> Sort: d.`month`  (actual time=18.1..18.7 rows=25947 loops=1)
+                                            -> Table scan on <temporary>  (cost=2595..2922 rows=25947) (actual time=15.1..16.4 rows=25947 loops=1)
+                                                -> Temporary table  (cost=2595..2595 rows=25947) (actual time=15.1..15.1 rows=25947 loops=1)
+                                                    -> Window aggregate: row_number() OVER (PARTITION BY d.`month` ORDER BY d.v )   (cost=0 rows=25947) (actual time=9.81..14.4 rows=25947 loops=1)
+                                                        -> Sort: d.`month`, d.v  (cost=5269 rows=25947) (actual time=9.81..10.7 rows=25947 loops=1)
+                                                            -> Filter: ((trips.do_location_id = 132) and (trips.pu_location_id = 161) and (trips.pickup_at >= TIMESTAMP'2023-01-01 00:00:00') and (trips.pickup_at < TIMESTAMP'2024-01-01 00:00:00'))  (cost=5269 rows=25947) (actual time=0.00863..5.13 rows=25947 loops=1)
+                                                                -> Covering index range scan on trips using trips_route over (pu_location_id = 161 AND do_location_id = 132 AND '2023-01-01 00:00:00' <= pickup_at < '2024-01-01 00:00:00')  (cost=5269 rows=25947) (actual time=0.00713..3.5 rows=25947 loops=1)
+    -> Index lookup on sa using <auto_key0> (month=fa.`month`)  (cost=0.25..2.5 rows=10) (actual time=2.59..2.59 rows=1 loops=12)
+        -> Materialize CTE sa  (cost=0..0 rows=0) (actual time=31..31 rows=12 loops=1)
+            -> Table scan on <temporary>  (actual time=31..31 rows=12 loops=1)
+                -> Aggregate using temporary table  (actual time=31..31 rows=12 loops=1)
+                    -> Table scan on s  (cost=2.5..2.5 rows=0) (actual time=26.6..27.9 rows=25947 loops=1)
+                        -> Materialize CTE s  (cost=0..0 rows=0) (actual time=26.6..26.6 rows=25947 loops=1)
+                            -> Window aggregate with buffering: count(0) OVER (PARTITION BY d.`month` )   (actual time=19.5..25.1 rows=25947 loops=1)
+                                -> Sort: d.`month`  (actual time=19.2..19.9 rows=25947 loops=1)
+                                    -> Table scan on <temporary>  (cost=2595..2922 rows=25947) (actual time=16.1..17.3 rows=25947 loops=1)
+                                        -> Temporary table  (cost=2595..2595 rows=25947) (actual time=16.1..16.1 rows=25947 loops=1)
+                                            -> Window aggregate: row_number() OVER (PARTITION BY d.`month` ORDER BY d.secs )   (cost=0 rows=25947) (actual time=10.1..15.3 rows=25947 loops=1)
+                                                -> Sort: d.`month`, d.secs  (cost=5269 rows=25947) (actual time=10.1..10.8 rows=25947 loops=1)
+                                                    -> Filter: ((trips.do_location_id = 132) and (trips.pu_location_id = 161) and (trips.pickup_at >= TIMESTAMP'2023-01-01 00:00:00') and (trips.pickup_at < TIMESTAMP'2024-01-01 00:00:00'))  (cost=5269 rows=25947) (actual time=0.00929..5.1 rows=25947 loops=1)
+                                                        -> Covering index range scan on trips using trips_route over (pu_location_id = 161 AND do_location_id = 132 AND '2023-01-01 00:00:00' <= pickup_at < '2024-01-01 00:00:00')  (cost=5269 rows=25947) (actual time=0.00796..3.45 rows=25947 loops=1)
+

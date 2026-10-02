@@ -1,0 +1,24 @@
+-- Median and p90 trip duration by pickup borough, June
+WITH h AS (
+                    SELECT borough, duration_s, n,
+                           sum(n) OVER (PARTITION BY borough ORDER BY duration_s) AS cum,
+                           sum(n) OVER (PARTITION BY borough) AS total
+                    FROM mv_duration_hist WHERE month = '2023-06-01')
+                 SELECT borough, max(total)::bigint AS trips,
+                        min(duration_s) FILTER (WHERE cum >= 0.5 * total) AS p50_s,
+                        min(duration_s) FILTER (WHERE cum >= 0.9 * total) AS p90_s
+                 FROM h GROUP BY 1 ORDER BY 1
+
+GroupAggregate  (cost=0.42..4973.16 rows=8 width=24) (actual time=4.297..19.508 rows=8 loops=1)
+  Group Key: mv_duration_hist.borough
+  Buffers: shared hit=27961
+  ->  WindowAgg  (cost=0.42..4107.62 rows=28848 width=84) (actual time=1.535..16.006 rows=27848 loops=1)
+        Buffers: shared hit=27961
+        ->  WindowAgg  (cost=0.42..3674.90 rows=28848 width=52) (actual time=0.011..11.974 rows=27848 loops=1)
+              Buffers: shared hit=27961
+              ->  Index Scan using mv_duration_hist_key on mv_duration_hist  (cost=0.42..3170.06 rows=28848 width=20) (actual time=0.008..6.399 rows=27848 loops=1)
+                    Index Cond: (month = '2023-06-01'::date)
+                    Buffers: shared hit=27961
+Settings: effective_cache_size = '6GB', work_mem = '128MB', max_parallel_workers_per_gather = '4', random_page_cost = '1.1'
+Planning Time: 0.043 ms
+Execution Time: 19.546 ms

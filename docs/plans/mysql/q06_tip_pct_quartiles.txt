@@ -1,0 +1,27 @@
+-- Credit-card tip % quartiles and p95 by month, Q2
+WITH h AS (
+                    SELECT month, tip_pct, n,
+                           SUM(n) OVER (PARTITION BY month ORDER BY tip_pct) AS cum,
+                           SUM(n) OVER (PARTITION BY month) AS total
+                    FROM mv_tip_hist WHERE month >= '2023-04-01' AND month < '2023-07-01')
+                 SELECT month, MAX(total) AS trips,
+                        MIN(CASE WHEN cum >= 0.25 * total THEN tip_pct END) AS p25,
+                        MIN(CASE WHEN cum >= 0.5 * total THEN tip_pct END) AS p50,
+                        MIN(CASE WHEN cum >= 0.75 * total THEN tip_pct END) AS p75,
+                        MIN(CASE WHEN cum >= 0.95 * total THEN tip_pct END) AS p95
+                 FROM h GROUP BY month ORDER BY month
+
+-> Sort: h.`month`  (actual time=34.4..34.4 rows=3 loops=1)
+    -> Table scan on <temporary>  (actual time=34.4..34.4 rows=3 loops=1)
+        -> Aggregate using temporary table  (actual time=34.4..34.4 rows=3 loops=1)
+            -> Table scan on h  (cost=2.5..2.5 rows=0) (actual time=26..27.1 rows=21087 loops=1)
+                -> Materialize CTE h  (cost=0..0 rows=0) (actual time=26..26 rows=21087 loops=1)
+                    -> Window aggregate with buffering: sum(mv_tip_hist.n) OVER (PARTITION BY mv_tip_hist.`month` )   (actual time=18.8..24.6 rows=21087 loops=1)
+                        -> Sort: mv_tip_hist.`month`  (actual time=16.9..17.5 rows=21087 loops=1)
+                            -> Table scan on <temporary>  (cost=3598..4051 rows=35984) (actual time=13.8..14.9 rows=21087 loops=1)
+                                -> Temporary table  (cost=3598..3598 rows=35984) (actual time=13.8..13.8 rows=21087 loops=1)
+                                    -> Window aggregate with buffering: sum(mv_tip_hist.n) OVER (PARTITION BY mv_tip_hist.`month` ORDER BY mv_tip_hist.tip_pct )   (cost=0 rows=35984) (actual time=5.54..13.2 rows=21087 loops=1)
+                                        -> Sort: mv_tip_hist.`month`, mv_tip_hist.tip_pct  (cost=7209 rows=35984) (actual time=4.5..5 rows=21087 loops=1)
+                                            -> Filter: ((mv_tip_hist.`month` >= DATE'2023-04-01') and (mv_tip_hist.`month` < DATE'2023-07-01'))  (cost=7209 rows=35984) (actual time=0.148..2.55 rows=21087 loops=1)
+                                                -> Index range scan on mv_tip_hist using PRIMARY over ('2023-04-01' <= month < '2023-07-01')  (cost=7209 rows=35984) (actual time=0.147..1.46 rows=21087 loops=1)
+

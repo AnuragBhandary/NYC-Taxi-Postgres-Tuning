@@ -1,0 +1,12 @@
+-- Trips and revenue per month, whole year
+SELECT CAST(DATE_FORMAT(day, '%Y-%m-01') AS DATE) AS month, SUM(trips) AS trips,
+                         SUM(revenue) AS revenue
+                  FROM mv_daily WHERE day >= '2023-01-01' AND day < '2024-01-01'
+                  GROUP BY 1 ORDER BY 1
+
+-> Sort: `month`  (actual time=133..133 rows=12 loops=1)
+    -> Table scan on <temporary>  (actual time=133..133 rows=12 loops=1)
+        -> Aggregate using temporary table  (actual time=133..133 rows=12 loops=1)
+            -> Filter: ((mv_daily.`day` >= DATE'2023-01-01') and (mv_daily.`day` < DATE'2024-01-01'))  (cost=36744 rows=183008) (actual time=0.115..56.5 rows=368183 loops=1)
+                -> Index range scan on mv_daily using PRIMARY over ('2023-01-01' <= day < '2024-01-01')  (cost=36744 rows=183008) (actual time=0.115..37.6 rows=368183 loops=1)
+

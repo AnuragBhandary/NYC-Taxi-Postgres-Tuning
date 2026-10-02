@@ -1,0 +1,39 @@
+-- Airport pickups by hour for one July week
+SELECT pu_location_id, extract(hour FROM pickup_at)::int AS hour,
+                        count(*) AS trips, round(sum(fare_amount) / count(*), 2) AS avg_fare,
+                        round(sum(extract(epoch FROM dropoff_at - pickup_at)::int) / 60.0
+                              / count(*), 1) AS avg_minutes
+                 FROM trips_heap WHERE pu_location_id IN (1, 132, 138)
+                   AND pickup_at >= '2023-07-03' AND pickup_at < '2023-07-10'
+                 GROUP BY 1, 2 ORDER BY 1, 2
+
+GroupAggregate  (cost=761068.68..770401.28 rows=52585 width=78) (actual time=334.495..347.145 rows=70 loops=1)
+  Group Key: pu_location_id, ((EXTRACT(hour FROM pickup_at))::integer)
+  Buffers: shared hit=10044 read=569712
+  I/O Timings: shared read=517.307
+  ->  Gather Merge  (cost=761068.68..767375.82 rows=52676 width=28) (actual time=334.461..341.073 rows=58889 loops=1)
+        Workers Planned: 4
+        Workers Launched: 4
+        Buffers: shared hit=10044 read=569712
+        I/O Timings: shared read=517.307
+        ->  Sort  (cost=760068.62..760101.55 rows=13169 width=28) (actual time=326.426..326.714 rows=11778 loops=5)
+              Sort Key: pu_location_id, ((EXTRACT(hour FROM pickup_at))::integer)
+              Sort Method: quicksort  Memory: 1013kB
+              Buffers: shared hit=10044 read=569712
+              I/O Timings: shared read=517.307
+              Worker 0:  Sort Method: quicksort  Memory: 967kB
+              Worker 1:  Sort Method: quicksort  Memory: 990kB
+              Worker 2:  Sort Method: quicksort  Memory: 1187kB
+              Worker 3:  Sort Method: quicksort  Memory: 985kB
+              ->  Parallel Seq Scan on trips_heap  (cost=0.00..759167.55 rows=13169 width=28) (actual time=186.320..325.195 rows=11778 loops=5)
+                    Filter: ((pickup_at >= '2023-07-03 00:00:00'::timestamp without time zone) AND (pickup_at < '2023-07-10 00:00:00'::timestamp without time zone) AND (pu_location_id = ANY ('{1,132,138}'::integer[])))
+                    Rows Removed by Filter: 7650267
+                    Buffers: shared hit=9792 read=569712
+                    I/O Timings: shared read=517.307
+Settings: effective_cache_size = '6GB', work_mem = '128MB', max_parallel_workers_per_gather = '4', random_page_cost = '1.1'
+Planning Time: 0.057 ms
+JIT:
+  Functions: 23
+  Options: Inlining true, Optimization true, Expressions true, Deforming true
+  Timing: Generation 1.487 ms, Inlining 77.552 ms, Optimization 60.225 ms, Emission 71.533 ms, Total 210.796 ms
+Execution Time: 347.568 ms

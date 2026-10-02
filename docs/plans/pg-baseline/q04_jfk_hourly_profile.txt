@@ -1,0 +1,36 @@
+-- JFK pickups by weekday and hour, whole year
+SELECT extract(isodow FROM pickup_at)::int AS dow,
+                        extract(hour FROM pickup_at)::int AS hour, count(*) AS trips
+                 FROM trips_heap WHERE pu_location_id = 132 AND pickup_at >= '2023-01-01' AND pickup_at < '2024-01-01'
+                 GROUP BY 1, 2 ORDER BY 1, 2
+
+GroupAggregate  (cost=799803.75..1088333.49 rows=1851786 width=16) (actual time=417.901..589.006 rows=168 loops=1)
+  Group Key: ((EXTRACT(isodow FROM pickup_at))::integer), ((EXTRACT(hour FROM pickup_at))::integer)
+  Buffers: shared hit=5088 read=574640
+  I/O Timings: shared read=527.437
+  ->  Gather Merge  (cost=799803.75..1036473.15 rows=1976616 width=8) (actual time=416.605..536.483 rows=1992276 loops=1)
+        Workers Planned: 4
+        Workers Launched: 4
+        Buffers: shared hit=5088 read=574640
+        I/O Timings: shared read=527.437
+        ->  Sort  (cost=798803.69..800039.07 rows=494154 width=8) (actual time=407.688..416.732 rows=398455 loops=5)
+              Sort Key: ((EXTRACT(isodow FROM pickup_at))::integer), ((EXTRACT(hour FROM pickup_at))::integer)
+              Sort Method: quicksort  Memory: 25434kB
+              Buffers: shared hit=5088 read=574640
+              I/O Timings: shared read=527.437
+              Worker 0:  Sort Method: quicksort  Memory: 24675kB
+              Worker 1:  Sort Method: quicksort  Memory: 24767kB
+              Worker 2:  Sort Method: quicksort  Memory: 24203kB
+              Worker 3:  Sort Method: quicksort  Memory: 24622kB
+              ->  Parallel Seq Scan on trips_heap  (cost=0.00..752070.06 rows=494154 width=8) (actual time=29.907..376.359 rows=398455 loops=5)
+                    Filter: ((pickup_at >= '2023-01-01 00:00:00'::timestamp without time zone) AND (pickup_at < '2024-01-01 00:00:00'::timestamp without time zone) AND (pu_location_id = 132))
+                    Rows Removed by Filter: 7263590
+                    Buffers: shared hit=4864 read=574640
+                    I/O Timings: shared read=527.437
+Settings: effective_cache_size = '6GB', work_mem = '128MB', max_parallel_workers_per_gather = '4', random_page_cost = '1.1'
+Planning Time: 0.048 ms
+JIT:
+  Functions: 23
+  Options: Inlining true, Optimization true, Expressions true, Deforming true
+  Timing: Generation 1.256 ms, Inlining 73.756 ms, Optimization 32.424 ms, Emission 43.150 ms, Total 150.586 ms
+Execution Time: 589.841 ms

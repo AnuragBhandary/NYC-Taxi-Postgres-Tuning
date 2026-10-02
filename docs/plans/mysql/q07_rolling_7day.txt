@@ -1,0 +1,23 @@
+-- Daily trips with 7-day moving average and week-over-week change
+WITH d AS (SELECT day, SUM(trips) AS trips FROM mv_daily
+                           WHERE day >= '2023-01-01' AND day < '2024-01-01' GROUP BY 1)
+                 SELECT day, trips,
+                        ROUND(AVG(trips) OVER (ORDER BY day ROWS BETWEEN 6 PRECEDING
+                                               AND CURRENT ROW), 2) AS ma7,
+                        trips - LAG(trips, 7) OVER (ORDER BY day) AS wow_change
+                 FROM d ORDER BY day
+
+-> Sort: d.`day`  (actual time=62.2..62.2 rows=365 loops=1)
+    -> Table scan on <temporary>  (cost=34.7..41.5 rows=347) (actual time=62.1..62.1 rows=365 loops=1)
+        -> Temporary table  (cost=34.7..34.7 rows=347) (actual time=62.1..62.1 rows=365 loops=1)
+            -> Window aggregate with buffering: lag(d.trips,7) OVER (ORDER BY d.`day` )   (cost=0 rows=347) (actual time=61.8..62.1 rows=365 loops=1)
+                -> Table scan on <temporary>  (cost=34.7..41.5 rows=347) (actual time=61.7..61.7 rows=365 loops=1)
+                    -> Temporary table  (cost=34.7..34.7 rows=347) (actual time=61.7..61.7 rows=365 loops=1)
+                        -> Window aggregate with buffering: avg(d.trips) OVER (ORDER BY d.`day` ROWS BETWEEN 6 PRECEDING AND CURRENT ROW)   (cost=0 rows=347) (actual time=61.5..61.7 rows=365 loops=1)
+                            -> Sort: d.`day`  (cost=55413..55413 rows=347) (actual time=61.4..61.5 rows=365 loops=1)
+                                -> Table scan on d  (cost=55079..55086 rows=347) (actual time=61.4..61.4 rows=365 loops=1)
+                                    -> Materialize CTE d  (cost=55079..55079 rows=347) (actual time=61.4..61.4 rows=365 loops=1)
+                                        -> Group aggregate: sum(mv_daily.trips)  (cost=55044 rows=347) (actual time=0.453..61.3 rows=365 loops=1)
+                                            -> Filter: ((mv_daily.`day` >= DATE'2023-01-01') and (mv_daily.`day` < DATE'2024-01-01'))  (cost=36744 rows=183008) (actual time=0.334..50.7 rows=368183 loops=1)
+                                                -> Index range scan on mv_daily using PRIMARY over ('2023-01-01' <= day < '2024-01-01')  (cost=36744 rows=183008) (actual time=0.331..31.7 rows=368183 loops=1)
+

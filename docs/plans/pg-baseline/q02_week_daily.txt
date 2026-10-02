@@ -1,0 +1,37 @@
+-- Daily trips, average distance and fare for one week of March
+SELECT pickup_at::date AS day, count(*) AS trips,
+                       round(sum(trip_distance) / count(*), 2) AS avg_miles,
+                       round(sum(fare_amount) / count(*), 2) AS avg_fare
+                FROM trips_heap WHERE pickup_at >= '2023-03-06' AND pickup_at < '2023-03-13'
+                GROUP BY 1 ORDER BY 1
+
+GroupAggregate  (cost=741499.43..865397.44 rows=748401 width=76) (actual time=434.283..522.507 rows=7 loops=1)
+  Group Key: ((pickup_at)::date)
+  Buffers: shared hit=2852 read=576880
+  I/O Timings: shared read=781.269
+  ->  Gather Merge  (cost=741499.43..833399.12 rows=767528 width=16) (actual time=423.463..476.157 rows=774830 loops=1)
+        Workers Planned: 4
+        Workers Launched: 4
+        Buffers: shared hit=2852 read=576880
+        I/O Timings: shared read=781.269
+        ->  Sort  (cost=740499.38..740979.08 rows=191882 width=16) (actual time=413.494..417.284 rows=154966 loops=5)
+              Sort Key: ((pickup_at)::date)
+              Sort Method: quicksort  Memory: 14205kB
+              Buffers: shared hit=2852 read=576880
+              I/O Timings: shared read=781.269
+              Worker 0:  Sort Method: quicksort  Memory: 12759kB
+              Worker 1:  Sort Method: quicksort  Memory: 13574kB
+              Worker 2:  Sort Method: quicksort  Memory: 12083kB
+              Worker 3:  Sort Method: quicksort  Memory: 12179kB
+              ->  Parallel Seq Scan on trips_heap  (cost=0.00..723661.86 rows=191882 width=16) (actual time=119.576..400.160 rows=154966 loops=5)
+                    Filter: ((pickup_at >= '2023-03-06 00:00:00'::timestamp without time zone) AND (pickup_at < '2023-03-13 00:00:00'::timestamp without time zone))
+                    Rows Removed by Filter: 7507079
+                    Buffers: shared hit=2624 read=576880
+                    I/O Timings: shared read=781.269
+Settings: effective_cache_size = '6GB', work_mem = '128MB', max_parallel_workers_per_gather = '4', random_page_cost = '1.1'
+Planning Time: 0.052 ms
+JIT:
+  Functions: 23
+  Options: Inlining true, Optimization true, Expressions true, Deforming true
+  Timing: Generation 1.389 ms, Inlining 106.314 ms, Optimization 62.979 ms, Emission 77.044 ms, Total 247.726 ms
+Execution Time: 523.239 ms

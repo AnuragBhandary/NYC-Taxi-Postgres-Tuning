@@ -1,0 +1,92 @@
+-- Top 3 drop-off zones for each pickup borough, June
+WITH c AS (
+                    SELECT pz.borough AS pu_borough, dz.zone AS do_zone, count(*) AS trips
+                    FROM trips_heap t
+                    JOIN zones pz ON pz.location_id = t.pu_location_id
+                    JOIN zones dz ON dz.location_id = t.do_location_id
+                    WHERE t.pickup_at >= '2023-06-01' AND t.pickup_at < '2023-07-01'
+                    GROUP BY 1, 2),
+                r AS (SELECT *, row_number() OVER (PARTITION BY pu_borough
+                                                   ORDER BY trips DESC, do_zone) AS rn FROM c)
+                SELECT pu_borough, rn, do_zone, trips FROM r WHERE rn <= 3
+                ORDER BY pu_borough, rn
+
+Incremental Sort  (cost=735030.43..736300.61 rows=2096 width=40) (actual time=527.298..530.691 rows=24 loops=1)
+  Sort Key: r.pu_borough, r.rn
+  Presorted Key: r.pu_borough
+  Full-sort Groups: 1  Sort Method: quicksort  Average Memory: 26kB  Peak Memory: 26kB
+  Buffers: shared hit=8554 read=571056
+  I/O Timings: shared read=524.419
+  ->  Subquery Scan on r  (cost=735024.20..736234.88 rows=2096 width=40) (actual time=525.688..530.684 rows=24 loops=1)
+        Buffers: shared hit=8554 read=571056
+        I/O Timings: shared read=524.419
+        ->  WindowAgg  (cost=735024.20..736213.92 rows=2096 width=40) (actual time=525.686..530.680 rows=24 loops=1)
+              Run Condition: (row_number() OVER (?) <= 3)
+              Buffers: shared hit=8554 read=571056
+              I/O Timings: shared read=524.419
+              ->  Incremental Sort  (cost=735024.20..736172.00 rows=2096 width=32) (actual time=525.675..530.584 rows=1470 loops=1)
+                    Sort Key: pz.borough, (count(*)) DESC, dz.zone
+                    Presorted Key: pz.borough
+                    Full-sort Groups: 7  Sort Method: quicksort  Average Memory: 28kB  Peak Memory: 28kB
+                    Pre-sorted Groups: 7  Sort Method: quicksort  Average Memory: 37kB  Peak Memory: 37kB
+                    Buffers: shared hit=8554 read=571056
+                    I/O Timings: shared read=524.419
+                    ->  Finalize GroupAggregate  (cost=735018.59..736106.28 rows=2096 width=32) (actual time=525.402..530.228 rows=1470 loops=1)
+                          Group Key: pz.borough, dz.zone
+                          Buffers: shared hit=8554 read=571056
+                          I/O Timings: shared read=524.419
+                          ->  Gather Merge  (cost=735018.59..736022.44 rows=8384 width=32) (actual time=525.392..529.819 rows=5797 loops=1)
+                                Workers Planned: 4
+                                Workers Launched: 4
+                                Buffers: shared hit=8554 read=571056
+                                I/O Timings: shared read=524.419
+                                ->  Sort  (cost=734018.53..734023.77 rows=2096 width=32) (actual time=515.611..515.642 rows=1159 loops=5)
+                                      Sort Key: pz.borough, dz.zone
+                                      Sort Method: quicksort  Memory: 111kB
+                                      Buffers: shared hit=8554 read=571056
+                                      I/O Timings: shared read=524.419
+                                      Worker 0:  Sort Method: quicksort  Memory: 118kB
+                                      Worker 1:  Sort Method: quicksort  Memory: 113kB
+                                      Worker 2:  Sort Method: quicksort  Memory: 121kB
+                                      Worker 3:  Sort Method: quicksort  Memory: 119kB
+                                      ->  Partial HashAggregate  (cost=733881.94..733902.90 rows=2096 width=32) (actual time=514.983..515.058 rows=1159 loops=5)
+                                            Group Key: pz.borough, dz.zone
+                                            Batches: 1  Memory Usage: 241kB
+                                            Buffers: shared hit=8522 read=571056
+                                            I/O Timings: shared read=524.419
+                                            Worker 0:  Batches: 1  Memory Usage: 241kB
+                                            Worker 1:  Batches: 1  Memory Usage: 241kB
+                                            Worker 2:  Batches: 1  Memory Usage: 241kB
+                                            Worker 3:  Batches: 1  Memory Usage: 241kB
+                                            ->  Hash Join  (cost=17.93..727639.61 rows=832311 width=24) (actual time=203.997..457.570 rows=661452 loops=5)
+                                                  Hash Cond: (t.do_location_id = dz.location_id)
+                                                  Buffers: shared hit=8522 read=571056
+                                                  I/O Timings: shared read=524.419
+                                                  ->  Hash Join  (cost=8.96..725410.88 rows=832311 width=10) (actual time=107.019..319.912 rows=661452 loops=5)
+                                                        Hash Cond: (t.pu_location_id = pz.location_id)
+                                                        Buffers: shared hit=8463 read=571056
+                                                        I/O Timings: shared read=524.419
+                                                        ->  Parallel Seq Scan on trips_heap t  (cost=0.00..723182.16 rows=832311 width=4) (actual time=106.943..272.256 rows=661452 loops=5)
+                                                              Filter: ((pickup_at >= '2023-06-01 00:00:00'::timestamp without time zone) AND (pickup_at < '2023-07-01 00:00:00'::timestamp without time zone))
+                                                              Rows Removed by Filter: 7000593
+                                                              Buffers: shared hit=8448 read=571056
+                                                              I/O Timings: shared read=524.419
+                                                        ->  Hash  (cost=5.65..5.65 rows=265 width=10) (actual time=0.050..0.050 rows=265 loops=5)
+                                                              Buckets: 1024  Batches: 1  Memory Usage: 20kB
+                                                              Buffers: shared hit=15
+                                                              ->  Seq Scan on zones pz  (cost=0.00..5.65 rows=265 width=10) (actual time=0.017..0.027 rows=265 loops=5)
+                                                                    Buffers: shared hit=15
+                                                  ->  Hash  (cost=5.65..5.65 rows=265 width=18) (actual time=96.947..96.948 rows=265 loops=5)
+                                                        Buckets: 1024  Batches: 1  Memory Usage: 22kB
+                                                        Buffers: shared hit=15
+                                                        ->  Seq Scan on zones dz  (cost=0.00..5.65 rows=265 width=18) (actual time=96.900..96.922 rows=265 loops=5)
+                                                              Buffers: shared hit=15
+Settings: effective_cache_size = '6GB', work_mem = '128MB', max_parallel_workers_per_gather = '4', random_page_cost = '1.1'
+Planning:
+  Buffers: shared hit=8
+Planning Time: 0.214 ms
+JIT:
+  Functions: 134
+  Options: Inlining true, Optimization true, Expressions true, Deforming true
+  Timing: Generation 3.780 ms, Inlining 84.361 ms, Optimization 189.027 ms, Emission 211.216 ms, Total 488.385 ms
+Execution Time: 531.744 ms

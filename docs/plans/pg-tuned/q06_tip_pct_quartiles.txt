@@ -1,0 +1,28 @@
+-- Credit-card tip % quartiles and p95 by month, Q2
+WITH h AS (
+                    SELECT month, tip_pct, n,
+                           sum(n) OVER (PARTITION BY month ORDER BY tip_pct) AS cum,
+                           sum(n) OVER (PARTITION BY month) AS total
+                    FROM mv_tip_hist WHERE month >= '2023-04-01' AND month < '2023-07-01')
+                 SELECT month, max(total)::bigint AS trips,
+                        min(tip_pct) FILTER (WHERE cum >= 0.25 * total) AS p25,
+                        min(tip_pct) FILTER (WHERE cum >= 0.5 * total) AS p50,
+                        min(tip_pct) FILTER (WHERE cum >= 0.75 * total) AS p75,
+                        min(tip_pct) FILTER (WHERE cum >= 0.95 * total) AS p95
+                 FROM h GROUP BY 1 ORDER BY 1
+
+GroupAggregate  (cost=0.42..2475.15 rows=19 width=140) (actual time=6.499..12.569 rows=3 loops=1)
+  Group Key: mv_tip_hist.month
+  Buffers: shared hit=218
+  ->  WindowAgg  (cost=0.42..1527.93 rows=21044 width=82) (actual time=2.288..7.999 rows=21087 loops=1)
+        Buffers: shared hit=218
+        ->  WindowAgg  (cost=0.42..1212.27 rows=21044 width=50) (actual time=0.010..5.290 rows=21087 loops=1)
+              Buffers: shared hit=218
+              ->  Index Scan using mv_tip_hist_key on mv_tip_hist  (cost=0.42..844.00 rows=21044 width=18) (actual time=0.007..1.063 rows=21087 loops=1)
+                    Index Cond: ((month >= '2023-04-01'::date) AND (month < '2023-07-01'::date))
+                    Buffers: shared hit=218
+Settings: effective_cache_size = '6GB', work_mem = '128MB', max_parallel_workers_per_gather = '4', random_page_cost = '1.1'
+Planning:
+  Buffers: shared hit=8
+Planning Time: 0.049 ms
+Execution Time: 12.599 ms

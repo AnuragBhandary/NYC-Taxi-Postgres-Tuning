@@ -1,0 +1,82 @@
+-- Midtown Center -> JFK by month: trips, median fare, p95 minutes
+SELECT date_trunc('month', pickup_at)::date AS month, count(*) AS trips,
+                        percentile_disc(0.5) WITHIN GROUP (ORDER BY fare_amount) AS median_fare,
+                        percentile_disc(0.95) WITHIN GROUP (ORDER BY
+                            extract(epoch FROM dropoff_at - pickup_at)::int) AS p95_s
+                 FROM trips WHERE pu_location_id = 161 AND do_location_id = 132 AND pickup_at >= '2023-01-01' AND pickup_at < '2024-01-01'
+                 GROUP BY 1 ORDER BY 1
+
+GroupAggregate  (cost=2554.90..3438.86 rows=22099 width=48) (actual time=5.154..9.918 rows=12 loops=1)
+  Group Key: ((date_trunc('month'::text, trips.pickup_at))::date)
+  Buffers: shared hit=248
+  ->  Sort  (cost=2554.90..2610.15 rows=22099 width=26) (actual time=4.826..5.394 rows=25947 loops=1)
+        Sort Key: ((date_trunc('month'::text, trips.pickup_at))::date)
+        Sort Method: quicksort  Memory: 2187kB
+        Buffers: shared hit=248
+        ->  Append  (cost=0.43..960.27 rows=22099 width=26) (actual time=0.005..3.511 rows=25947 loops=1)
+              Buffers: shared hit=248
+              ->  Index Only Scan using trips_2023_01_pu_location_id_do_location_id_pickup_at_dropo_idx on trips_2023_01 trips_1  (cost=0.43..51.81 rows=1346 width=26) (actual time=0.005..0.159 rows=1628 loops=1)
+                    Index Cond: ((pu_location_id = 161) AND (do_location_id = 132))
+                    Filter: ((pickup_at >= '2023-01-01 00:00:00'::timestamp without time zone) AND (pickup_at < '2024-01-01 00:00:00'::timestamp without time zone))
+                    Heap Fetches: 0
+                    Buffers: shared hit=17
+              ->  Index Only Scan using trips_2023_02_pu_location_id_do_location_id_pickup_at_dropo_idx on trips_2023_02 trips_2  (cost=0.43..60.96 rows=1577 width=26) (actual time=0.005..0.163 rows=1676 loops=1)
+                    Index Cond: ((pu_location_id = 161) AND (do_location_id = 132))
+                    Filter: ((pickup_at >= '2023-01-01 00:00:00'::timestamp without time zone) AND (pickup_at < '2024-01-01 00:00:00'::timestamp without time zone))
+                    Heap Fetches: 0
+                    Buffers: shared hit=17
+              ->  Index Only Scan using trips_2023_03_pu_location_id_do_location_id_pickup_at_dropo_idx on trips_2023_03 trips_3  (cost=0.43..70.28 rows=1814 width=26) (actual time=0.005..0.196 rows=2073 loops=1)
+                    Index Cond: ((pu_location_id = 161) AND (do_location_id = 132))
+                    Filter: ((pickup_at >= '2023-01-01 00:00:00'::timestamp without time zone) AND (pickup_at < '2024-01-01 00:00:00'::timestamp without time zone))
+                    Heap Fetches: 0
+                    Buffers: shared hit=20
+              ->  Index Only Scan using trips_2023_04_pu_location_id_do_location_id_pickup_at_dropo_idx on trips_2023_04 trips_4  (cost=0.43..72.89 rows=1902 width=26) (actual time=0.003..0.211 rows=2259 loops=1)
+                    Index Cond: ((pu_location_id = 161) AND (do_location_id = 132))
+                    Filter: ((pickup_at >= '2023-01-01 00:00:00'::timestamp without time zone) AND (pickup_at < '2024-01-01 00:00:00'::timestamp without time zone))
+                    Heap Fetches: 0
+                    Buffers: shared hit=22
+              ->  Index Only Scan using trips_2023_05_pu_location_id_do_location_id_pickup_at_dropo_idx on trips_2023_05 trips_5  (cost=0.43..87.11 rows=2266 width=26) (actual time=0.006..0.259 rows=2638 loops=1)
+                    Index Cond: ((pu_location_id = 161) AND (do_location_id = 132))
+                    Filter: ((pickup_at >= '2023-01-01 00:00:00'::timestamp without time zone) AND (pickup_at < '2024-01-01 00:00:00'::timestamp without time zone))
+                    Heap Fetches: 0
+                    Buffers: shared hit=24
+              ->  Index Only Scan using trips_2023_06_pu_location_id_do_location_id_pickup_at_dropo_idx on trips_2023_06 trips_6  (cost=0.43..78.82 rows=2063 width=26) (actual time=0.005..0.230 rows=2322 loops=1)
+                    Index Cond: ((pu_location_id = 161) AND (do_location_id = 132))
+                    Filter: ((pickup_at >= '2023-01-01 00:00:00'::timestamp without time zone) AND (pickup_at < '2024-01-01 00:00:00'::timestamp without time zone))
+                    Heap Fetches: 0
+                    Buffers: shared hit=21
+              ->  Index Only Scan using trips_2023_07_pu_location_id_do_location_id_pickup_at_dropo_idx on trips_2023_07 trips_7  (cost=0.43..68.01 rows=1776 width=26) (actual time=0.004..0.187 rows=1882 loops=1)
+                    Index Cond: ((pu_location_id = 161) AND (do_location_id = 132))
+                    Filter: ((pickup_at >= '2023-01-01 00:00:00'::timestamp without time zone) AND (pickup_at < '2024-01-01 00:00:00'::timestamp without time zone))
+                    Heap Fetches: 0
+                    Buffers: shared hit=19
+              ->  Index Only Scan using trips_2023_08_pu_location_id_do_location_id_pickup_at_dropo_idx on trips_2023_08 trips_8  (cost=0.43..70.75 rows=1830 width=26) (actual time=0.004..0.210 rows=2107 loops=1)
+                    Index Cond: ((pu_location_id = 161) AND (do_location_id = 132))
+                    Filter: ((pickup_at >= '2023-01-01 00:00:00'::timestamp without time zone) AND (pickup_at < '2024-01-01 00:00:00'::timestamp without time zone))
+                    Heap Fetches: 0
+                    Buffers: shared hit=20
+              ->  Index Only Scan using trips_2023_09_pu_location_id_do_location_id_pickup_at_dropo_idx on trips_2023_09 trips_9  (cost=0.43..55.18 rows=1421 width=26) (actual time=0.005..0.206 rows=1902 loops=1)
+                    Index Cond: ((pu_location_id = 161) AND (do_location_id = 132))
+                    Filter: ((pickup_at >= '2023-01-01 00:00:00'::timestamp without time zone) AND (pickup_at < '2024-01-01 00:00:00'::timestamp without time zone))
+                    Heap Fetches: 0
+                    Buffers: shared hit=19
+              ->  Index Only Scan using trips_2023_10_pu_location_id_do_location_id_pickup_at_dropo_idx on trips_2023_10 trips_10  (cost=0.43..84.56 rows=2217 width=26) (actual time=0.004..0.284 rows=2857 loops=1)
+                    Index Cond: ((pu_location_id = 161) AND (do_location_id = 132))
+                    Filter: ((pickup_at >= '2023-01-01 00:00:00'::timestamp without time zone) AND (pickup_at < '2024-01-01 00:00:00'::timestamp without time zone))
+                    Heap Fetches: 0
+                    Buffers: shared hit=26
+              ->  Index Only Scan using trips_2023_11_pu_location_id_do_location_id_pickup_at_dropo_idx on trips_2023_11 trips_11  (cost=0.43..77.38 rows=2014 width=26) (actual time=0.005..0.253 rows=2441 loops=1)
+                    Index Cond: ((pu_location_id = 161) AND (do_location_id = 132))
+                    Filter: ((pickup_at >= '2023-01-01 00:00:00'::timestamp without time zone) AND (pickup_at < '2024-01-01 00:00:00'::timestamp without time zone))
+                    Heap Fetches: 0
+                    Buffers: shared hit=23
+              ->  Index Only Scan using trips_2023_12_pu_location_id_do_location_id_pickup_at_dropo_idx on trips_2023_12 trips_12  (cost=0.43..72.02 rows=1873 width=26) (actual time=0.006..0.216 rows=2162 loops=1)
+                    Index Cond: ((pu_location_id = 161) AND (do_location_id = 132))
+                    Filter: ((pickup_at >= '2023-01-01 00:00:00'::timestamp without time zone) AND (pickup_at < '2024-01-01 00:00:00'::timestamp without time zone))
+                    Heap Fetches: 0
+                    Buffers: shared hit=20
+Settings: effective_cache_size = '6GB', work_mem = '128MB', max_parallel_workers_per_gather = '4', random_page_cost = '1.1'
+Planning:
+  Buffers: shared hit=12
+Planning Time: 0.171 ms
+Execution Time: 10.041 ms

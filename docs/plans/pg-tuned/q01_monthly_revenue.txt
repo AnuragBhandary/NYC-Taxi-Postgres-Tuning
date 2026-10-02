@@ -1,0 +1,34 @@
+-- Trips and revenue per month, whole year
+SELECT date_trunc('month', day)::date AS month, sum(trips)::bigint AS trips,
+                        sum(revenue) AS revenue
+                 FROM mv_daily WHERE day >= '2023-01-01' AND day < '2024-01-01'
+                 GROUP BY 1 ORDER BY 1
+
+Finalize GroupAggregate  (cost=9182.51..9287.63 rows=371 width=44) (actual time=27.043..28.381 rows=12 loops=1)
+  Group Key: ((date_trunc('month'::text, (day)::timestamp with time zone))::date)
+  Buffers: shared hit=3600
+  ->  Gather Merge  (cost=9182.51..9269.08 rows=742 width=68) (actual time=27.039..28.363 rows=36 loops=1)
+        Workers Planned: 2
+        Workers Launched: 2
+        Buffers: shared hit=3600
+        ->  Sort  (cost=8182.48..8183.41 rows=371 width=68) (actual time=25.855..25.855 rows=12 loops=3)
+              Sort Key: ((date_trunc('month'::text, (day)::timestamp with time zone))::date)
+              Sort Method: quicksort  Memory: 26kB
+              Buffers: shared hit=3600
+              Worker 0:  Sort Method: quicksort  Memory: 26kB
+              Worker 1:  Sort Method: quicksort  Memory: 26kB
+              ->  Partial HashAggregate  (cost=8158.30..8166.65 rows=371 width=68) (actual time=25.838..25.841 rows=12 loops=3)
+                    Group Key: (date_trunc('month'::text, (day)::timestamp with time zone))::date
+                    Batches: 1  Memory Usage: 37kB
+                    Buffers: shared hit=3584
+                    Worker 0:  Batches: 1  Memory Usage: 37kB
+                    Worker 1:  Batches: 1  Memory Usage: 37kB
+                    ->  Parallel Seq Scan on mv_daily  (cost=0.00..7021.97 rows=151511 width=18) (actual time=0.005..17.415 rows=122728 loops=3)
+                          Filter: ((day >= '2023-01-01'::date) AND (day < '2024-01-01'::date))
+                          Rows Removed by Filter: 26
+                          Buffers: shared hit=3584
+Settings: effective_cache_size = '6GB', work_mem = '128MB', max_parallel_workers_per_gather = '4', random_page_cost = '1.1'
+Planning:
+  Buffers: shared hit=8
+Planning Time: 0.078 ms
+Execution Time: 28.409 ms

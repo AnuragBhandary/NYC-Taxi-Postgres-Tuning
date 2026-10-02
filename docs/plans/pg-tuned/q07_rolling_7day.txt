@@ -1,0 +1,41 @@
+-- Daily trips with 7-day moving average and week-over-week change
+WITH d AS (SELECT day, sum(trips)::bigint AS trips FROM mv_daily
+                           WHERE day >= '2023-01-01' AND day < '2024-01-01' GROUP BY 1)
+                 SELECT day, trips,
+                        round(avg(trips) OVER (ORDER BY day ROWS BETWEEN 6 PRECEDING
+                                               AND CURRENT ROW), 2) AS ma7,
+                        trips - lag(trips, 7) OVER (ORDER BY day) AS wow_change
+                 FROM d ORDER BY day
+
+WindowAgg  (cost=7663.69..7774.37 rows=371 width=52) (actual time=19.572..22.349 rows=365 loops=1)
+  Buffers: shared hit=3600
+  ->  WindowAgg  (cost=7663.69..7766.95 rows=371 width=44) (actual time=19.568..22.268 rows=365 loops=1)
+        Buffers: shared hit=3600
+        ->  Finalize GroupAggregate  (cost=7663.69..7761.39 rows=371 width=12) (actual time=19.562..22.175 rows=365 loops=1)
+              Group Key: mv_daily.day
+              Buffers: shared hit=3600
+              ->  Gather Merge  (cost=7663.69..7750.26 rows=742 width=36) (actual time=19.558..22.040 rows=1095 loops=1)
+                    Workers Planned: 2
+                    Workers Launched: 2
+                    Buffers: shared hit=3600
+                    ->  Sort  (cost=6663.66..6664.59 rows=371 width=36) (actual time=13.842..13.852 rows=365 loops=3)
+                          Sort Key: mv_daily.day
+                          Sort Method: quicksort  Memory: 47kB
+                          Buffers: shared hit=3600
+                          Worker 0:  Sort Method: quicksort  Memory: 47kB
+                          Worker 1:  Sort Method: quicksort  Memory: 47kB
+                          ->  Partial HashAggregate  (cost=6643.19..6647.83 rows=371 width=36) (actual time=13.761..13.789 rows=365 loops=3)
+                                Group Key: mv_daily.day
+                                Batches: 1  Memory Usage: 93kB
+                                Buffers: shared hit=3584
+                                Worker 0:  Batches: 1  Memory Usage: 93kB
+                                Worker 1:  Batches: 1  Memory Usage: 93kB
+                                ->  Parallel Seq Scan on mv_daily  (cost=0.00..5885.64 rows=151511 width=12) (actual time=0.005..5.942 rows=122728 loops=3)
+                                      Filter: ((day >= '2023-01-01'::date) AND (day < '2024-01-01'::date))
+                                      Rows Removed by Filter: 26
+                                      Buffers: shared hit=3584
+Settings: effective_cache_size = '6GB', work_mem = '128MB', max_parallel_workers_per_gather = '4', random_page_cost = '1.1'
+Planning:
+  Buffers: shared hit=8
+Planning Time: 0.057 ms
+Execution Time: 22.388 ms

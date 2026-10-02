@@ -1,0 +1,24 @@
+-- Median and p90 trip duration by pickup borough, June
+WITH h AS (
+                    SELECT borough, duration_s, n,
+                           SUM(n) OVER (PARTITION BY borough ORDER BY duration_s) AS cum,
+                           SUM(n) OVER (PARTITION BY borough) AS total
+                    FROM mv_duration_hist WHERE month = '2023-06-01')
+                 SELECT borough, MAX(total) AS trips,
+                        MIN(CASE WHEN cum >= 0.5 * total THEN duration_s END) AS p50_s,
+                        MIN(CASE WHEN cum >= 0.9 * total THEN duration_s END) AS p90_s
+                 FROM h GROUP BY borough ORDER BY borough
+
+-> Sort: h.borough  (actual time=43.9..43.9 rows=8 loops=1)
+    -> Table scan on <temporary>  (actual time=43.9..43.9 rows=8 loops=1)
+        -> Aggregate using temporary table  (actual time=43.9..43.9 rows=8 loops=1)
+            -> Table scan on h  (cost=2.5..2.5 rows=0) (actual time=35.6..37.4 rows=27848 loops=1)
+                -> Materialize CTE h  (cost=0..0 rows=0) (actual time=35.6..35.6 rows=27848 loops=1)
+                    -> Window aggregate with buffering: sum(mv_duration_hist.n) OVER (PARTITION BY mv_duration_hist.borough )   (actual time=23.3..33.4 rows=27848 loops=1)
+                        -> Sort: mv_duration_hist.borough  (actual time=22.5..23.3 rows=27848 loops=1)
+                            -> Table scan on <temporary>  (cost=5579..6279 rows=55792) (actual time=17.5..19.2 rows=27848 loops=1)
+                                -> Temporary table  (cost=5579..5579 rows=55792) (actual time=17.5..17.5 rows=27848 loops=1)
+                                    -> Window aggregate with buffering: sum(mv_duration_hist.n) OVER (PARTITION BY mv_duration_hist.borough ORDER BY mv_duration_hist.duration_s )   (cost=0 rows=55792) (actual time=6.2..16.4 rows=27848 loops=1)
+                                        -> Sort: mv_duration_hist.borough, mv_duration_hist.duration_s  (cost=5596 rows=55792) (actual time=5.75..6.52 rows=27848 loops=1)
+                                            -> Index lookup on mv_duration_hist using PRIMARY (month=DATE'2023-06-01')  (cost=5596 rows=55792) (actual time=0.0409..2.14 rows=27848 loops=1)
+

@@ -1,0 +1,24 @@
+-- JFK pickups by weekday and hour, whole year
+SELECT extract(isodow FROM day)::int AS dow, hour, sum(trips)::bigint AS trips
+                 FROM mv_hourly_zone WHERE pu_location_id = 132
+                   AND day >= '2023-01-01' AND day < '2024-01-01'
+                 GROUP BY 1, 2 ORDER BY 1, 2
+
+Sort  (cost=5815.04..5828.84 rows=5520 width=16) (actual time=3.090..3.094 rows=168 loops=1)
+  Sort Key: ((EXTRACT(isodow FROM day))::integer), hour
+  Sort Method: quicksort  Memory: 31kB
+  Buffers: shared hit=4492
+  ->  HashAggregate  (cost=5361.56..5471.96 rows=5520 width=16) (actual time=3.041..3.072 rows=168 loops=1)
+        Group Key: (EXTRACT(isodow FROM day))::integer, hour
+        Batches: 1  Memory Usage: 241kB
+        Buffers: shared hit=4492
+        ->  Bitmap Heap Scan on mv_hourly_zone  (cost=148.16..5296.66 rows=8654 width=16) (actual time=0.604..2.511 rows=8718 loops=1)
+              Recheck Cond: ((pu_location_id = 132) AND (day >= '2023-01-01'::date) AND (day < '2024-01-01'::date))
+              Heap Blocks: exact=4455
+              Buffers: shared hit=4492
+              ->  Bitmap Index Scan on mv_hourly_zone_key  (cost=0.00..146.00 rows=8654 width=0) (actual time=0.387..0.387 rows=8718 loops=1)
+                    Index Cond: ((pu_location_id = 132) AND (day >= '2023-01-01'::date) AND (day < '2024-01-01'::date))
+                    Buffers: shared hit=37
+Settings: effective_cache_size = '6GB', work_mem = '128MB', max_parallel_workers_per_gather = '4', random_page_cost = '1.1'
+Planning Time: 0.015 ms
+Execution Time: 3.143 ms

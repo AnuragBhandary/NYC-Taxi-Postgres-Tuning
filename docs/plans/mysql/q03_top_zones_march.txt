@@ -1,0 +1,16 @@
+-- Top 10 pickup zones by revenue in March
+SELECT z.location_id, z.zone, z.borough, SUM(m.trips) AS trips,
+                        SUM(m.revenue) AS revenue
+                 FROM mv_daily m JOIN zones z ON z.location_id = m.pu_location_id
+                 WHERE m.day >= '2023-03-01' AND m.day < '2023-04-01'
+                 GROUP BY 1, 2, 3 ORDER BY revenue DESC, z.location_id LIMIT 10
+
+-> Limit: 10 row(s)  (actual time=21..21 rows=10 loops=1)
+    -> Sort: revenue DESC, z.location_id, limit input to 10 row(s) per chunk  (actual time=21..21 rows=10 loops=1)
+        -> Table scan on <temporary>  (actual time=20.9..20.9 rows=261 loops=1)
+            -> Aggregate using temporary table  (actual time=20.9..20.9 rows=261 loops=1)
+                -> Nested loop inner join  (cost=35752 rows=64912) (actual time=0.116..11.7 rows=30703 loops=1)
+                    -> Filter: ((m.`day` >= DATE'2023-03-01') and (m.`day` < DATE'2023-04-01'))  (cost=13033 rows=64912) (actual time=0.114..4.75 rows=30703 loops=1)
+                        -> Index range scan on m using PRIMARY over ('2023-03-01' <= day < '2023-04-01')  (cost=13033 rows=64912) (actual time=0.114..3.14 rows=30703 loops=1)
+                    -> Single-row index lookup on z using PRIMARY (location_id=m.pu_location_id)  (cost=0.25 rows=1) (actual time=130e-6..145e-6 rows=1 loops=30703)
+
