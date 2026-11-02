@@ -58,7 +58,7 @@ month in the original Parquet schemas, plus a full Thanksgiving day for two zone
 ```
 src/taxibench/  source (Parquet normalization), pg (designs + loader), mysql (equivalent design),
                 queries (the 12 questions x 3 dialects), bench (timing, plans, fingerprints), cli
-docs/           RESULTS, DESIGN, INTERVIEW, plans/<design>/<query>.txt, results.json
+docs/           RESULTS, DESIGN, plans/<design>/<query>.txt, results.json
 tests/          test_suite.py, fixtures/sample (Parquet)
 ```
 
